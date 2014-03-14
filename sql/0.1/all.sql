@@ -1,0 +1,1 @@
+ALTER TABLE pet ADD tatoo VARCHAR(20);

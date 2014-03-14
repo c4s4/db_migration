@@ -1,0 +1,15 @@
+# Each release must document an entry such as
+# - release:     1.0.0
+#   date:        2012-02-22
+#   description: "Release description"
+#   fixed:
+#   - "Description about what was fixed."
+#   added:
+#   - "Description about what was added."
+#   removed:
+#   - "Description about what was removed."
+
+- release:     1.0.0
+  date:        2014-03-??
+  description: "First public release"
+
