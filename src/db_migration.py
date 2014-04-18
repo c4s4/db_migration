@@ -371,7 +371,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.db_config.update(self.LOCAL_DB_CONFIG)
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
-        self.mysql = MysqlNullDriver(configuration=self.db_config)
+        self.mysql = MysqlNullDriver(configuration=self.db_config, charset=self.config.CHARSET)
         self.meta_manager = MetaManager(self.mysql)
         # set default SQL directory
         if not self.sql_dir:
