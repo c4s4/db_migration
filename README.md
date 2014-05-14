@@ -156,58 +156,58 @@ Pour obtenir de l'aide sur le script, taper la ligne de commande suivante :
                 possibles sont 'itg', 'prp' et 'prod'). La valeur par defaut est 'itg'.
     version     La version a installer (la version de l'archive par defaut).
 
-- L'option '-d' (pour dry run) permet de lister les scripts qui seront passés
+- L'option `-d` (pour dry run) permet de lister les scripts qui seront passés
   lors de la migration sans les exécuter réellement.
 
-- L'option '-i' intialise la base de données, c'est à dire qu'elle passe d'abord
-  les scripts du répetoire 'init'. Les tables de la base de donnée seront 
+- L'option `-i` intialise la base de données, c'est à dire qu'elle passe d'abord
+  les scripts du répetoire `init`. Les tables de la base de donnée seront 
   effacées. ATTENTION ! Cette commande peut être dangereuse sur les plateformes
   de PRP ou PROD par exemple. Cependant, cette option est refusée sur les
   plateformes listées dans la propriété `CRITICAL_PLATFORMS` de la configuration.
 
-- L'option '-a' passe les scripts de migration pour toutes les versions. On ne
+- L'option `-a` passe les scripts de migration pour toutes les versions. On ne
   doit donc pas passer la version en paramètre avec cette option.
 
-- L'option '-l' passe les scripts en local, c'est à dire sur la base MySQL sur
-  'localhost' avec l'utilisateur 'test' et le mot de passe 'test'. Cet utlisateur
+- L'option `-l` passe les scripts en local, c'est à dire sur la base MySQL sur
+  `localhost` avec l'utilisateur `test` et le mot de passe `test`. Cet utlisateur
   et ce mot de passe sont disponibles dans la configuration par défaut de MySQL.
-  A noter que l'utilisateur 'test' doit avoir les droits sur la base de donnée
+  A noter que l'utilisateur `test` doit avoir les droits sur la base de donnée
   de la configuration.
 
-- L'option '-u' passe les scripts silencieusement (sauf en cas d'erreur).
+- L'option `-u` passe les scripts silencieusement (sauf en cas d'erreur).
 
 - L'option `-s sql_dir` indique où se trouvent les scripts de migration SQL.
   Par défaut, les scripts sont cherchés dans le répertoire du script de
   migration.
 
-- L'option '-p fichier' permet de réaliser un dump de la base de données dans le
+- L'option `-p fichier` permet de réaliser un dump de la base de données dans le
   fichier passé en paramètre. Ce fichier peut être utlisé pour gérer un retour
   arrière. A noter que les tables meta (`_install` et `_scripts`) font partie du
   dump.
 
-- L'option '-m from' permet de générer la requête SQL de migration de la version
-  'from' vers la version 'version' passée en ligne de commande. A noter que cette
-  option est incompatble avec les options '-d', '-l' et '-p'. Cette option est
+- L'option `-m from` permet de générer la requête SQL de migration de la version
+  `from` vers la version `version` passée en ligne de commande. A noter que cette
+  option est incompatble avec les options `-d`, `-l` et `-p`. Cette option est
   pratique pour mettre à jour la base de donnée sur des plateformes où le script
   de migration ne peut pas tourner. Cependant, les tables méta ne sont pas mises à
   jour et l'on doit connaître la version depuis laquelle on migre la base de
   données.
 
-Si un fichier VERSION se trouve dans le répertoire du script, alors la version
+Si un fichier `VERSION` se trouve dans le répertoire du script, alors la version
 vers laquelle on migrera la base est extraite de ce fichier. Dans ce cas une
-extension '-SNAPSHOT' peut se trouver à la fin de la version et elle est ignorée
+extension `-SNAPSHOT` peut se trouver à la fin de la version et elle est ignorée
 lors des comparaisons.
 
 
 Exemples
 --------
 
-Pour migrer la base d'ITG vers la version '1.2.3' :
+Pour migrer la base d'ITG vers la version 1.2.3 :
 
     ./db_migration.py itg 1.2.3
 
 Pour afficher les scripts à passer pour migrer la base d'ITG vers la version
-'1.2.3' sans les exécuter (dry run) :
+1.2.3 sans les exécuter (dry run) :
 
     ./db_migration.py -d itg 1.2.3  
 
@@ -219,17 +219,17 @@ Pour migrer la base d'ITG vers la dernière version :
 
     ./db_migration.py -a itg
 
-Pour installer la base d'ITG en version '1.2.3' en local :
+Pour installer la base d'ITG en version 1.2.3 en local :
 
     ./db_migration.py -l itg 1.2.3
 
-Pour migrer la base d'ITG vers la version '1.2.3' et faire un dump de l'état
-actuel dans le fichier 'dump.sql' :
+Pour migrer la base d'ITG vers la version 1.2.3 et faire un dump de l'état
+actuel dans le fichier `dump.sql` :
 
     ./db_migration.py -p dump.sql itg 1.2.3
 
-Pour générer le script de migration SQL de la base d'ITG de la version '1.0.0' 
-vers la version '1.2.3' :
+Pour générer le script de migration SQL de la base d'ITG de la version 1.0.0
+vers la version 1.2.3 :
 
     ./db_migration.py -m 1.0.0 itg 1.2.3 > migration-1.0.0-1.2.3.sql
 
@@ -238,12 +238,12 @@ Installation du script
 ----------------------
 
 Pour installer le script dans votre projet, créer un répertoire dédié à la
-base de donnée (par exemple 'sql') et y recopier le contenu du répertoire
+base de donnée (par exemple `sql`) et y recopier le contenu du répertoire
 sql (en particulier les scripts `db_migration.py` et `db_configuration.py`).
 On personalisera le fichier de configuration `db_configuration.py`.
 
-Placer ensuite les scripts d'initialisation dans un répertoire 'init' et ceux de
-migration dans des répertoires 'x.y.z'. Le script de migration cherche les 
+Placer ensuite les scripts d'initialisation dans un répertoire `init` et ceux de
+migration dans des répertoires `x.y.z`. Le script de migration cherche les 
 répertoires des scripts de migration dans son propre répertoire.
 
 On pourra alors livrer le script de migration (avec sa configuration et les
@@ -263,8 +263,8 @@ Pour faire tourner le script, on doit disposer des pré-requis suivants :
   scripts de migration.
 
 Si la plateforme ne dispose pas de ces pré-requis, il est toujours possible de
-gérer les migrations en générant des scripts de migration avec l'option '-m'
-(voir l'option dans la section 'Script de migration' ci-dessus).
+gérer les migrations en générant des scripts de migration avec l'option `-m`
+(voir l'option dans la section `Script de migration` ci-dessus).
 
 
 Tables des méta données
@@ -272,44 +272,37 @@ Tables des méta données
 
 Le script de migration gère deux tables de méta données dans la base :
 
-Table `_scripts`
-..............
+#### Table `_scripts`
 
 Elle contient les informations relatives au passage des scripts de migration.
 Exemple d'une telle table :
 
-    +--------------+---------------------+---------+------------+---------------+
-    | filename     | install_date        | success | install_id | error_message |
-    +--------------+---------------------+---------+------------+---------------+
-    | init/all.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
-    | init/itg.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
-    | 0.1/all.sql  | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
-    +--------------+---------------------+---------+------------+---------------+
+| filename     | install_date        | success | install_id | error_message |
+|--------------|---------------------|---------|------------|---------------|
+| init/all.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
+| init/itg.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
+| 0.1/all.sql  | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
 
 Cette table liste les scripts passés (avec le chemin relatif au répertoire du
 script) avec leur date d'installation, le succès et un éventuel message d'erreur.
 De plus elle indique la référence de l'installation correspondante dans la table
 `_install`.
 
-Table `_install`
-..............
+#### Table `_install`
 
 Elle liste les migrations de la base :
 
-    +----+-------+-------+-------+------------------+------------------+---------+
-    | id | major | minor | debug | start_date       | end_date         | success |
-    +----+-------+-------+-------+------------------+------------------+---------+
-    |  1 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
-    |  2 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
-    +----+-------+-------+-------+------------------+------------------+---------+
+| id | major | minor | debug | start_date       | end_date         | success |
+|----|-------|-------|-------|------------------|------------------|---------|
+|  1 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
+|  2 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
 
 La table liste les migrations avec leur version (sous la forme 'major.minor.
 debug'), les dates de début et de fin de migration ainsi que le succès de la 
 migration.
 
 
-Comment créer les tables des méta données à la main
-...................................................
+#### Comment créer les tables des méta données à la main
 
 Les tables de méta données sont générées automatiquement à l'init (option -i).
 Néanmoins, si vous devez les créer à la main, voici les instructions : 
