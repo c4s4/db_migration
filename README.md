@@ -25,7 +25,7 @@ données. On pourra y placer des scripts `itg.sql`, `prp.sql` et `prod.sql` par
 exemple contenant les données par environnement.
 
 Les scripts d'initialisation qui créent des tables doivent auparavent les effacer
-avec une clause DROP TABLE IF EXISTS. Par exemple, on écrira pour créer la table 
+avec une clause `DROP TABLE IF EXISTS`. Par exemple, on écrira pour créer la table 
 `Aureus_Creancier` :
 
     DROP TABLE IF EXISTS `Aureus_Creancier`;
@@ -49,7 +49,7 @@ A noter qu'il n'est pas nécessaire de préciser la base de donnée utilisée da
 les scripts par une clause USE car la base de données spécifiée dans le fichier
 de configuration est utilisée pour exécuter les scripts.
 
-Les versions doivent être de la forme 'X.Y.Z' (ou un sous ensemble 'X.Y' ou 'X'),
+Les versions doivent être de la forme `X.Y.Z` (ou un sous ensemble `X.Y` ou `X`),
 où X, Y et Z sont des entiers, sans quoi le script de migration ne peut les
 gérer.
 
@@ -96,26 +96,26 @@ Voici un exemple de fichier de configuration :
 
 C'est un fichier Python qui comporte les propriétés de configuration suivantes :
 
-`PLATFORMS` : la liste des plates-formes à gérer. Typiquement 'itg', 'prp' 
+- `PLATFORMS` : la liste des plates-formes à gérer. Typiquement 'itg', 'prp' 
 et 'prod'. Les scripts de migration seront nommés en conséquence.
 
-`DEFAULT_PLATFORM` : la plate-forme par défaut (celle qui est utilisée 
+- `DEFAULT_PLATFORM` : la plate-forme par défaut (celle qui est utilisée 
 lorsqu'aucune plate-forme n'est passée en ligne de commande). L'expression 'PLATFORMS[0]' 
 indique que l'on prend la première plate-forme de la liste.
 
-`CRITICAL_PLATFORMS` : la liste des plates-formes sur lesquelles l'option
+- `CRITICAL_PLATFORMS` : la liste des plates-formes sur lesquelles l'option
 '-i' qui réinitialise la base de données (et efface toutes ses tables) est
 interdite. L'expression 'PLATFORMS[1:]' indique que l'on prend toutes les
 plateformes sauf la première.
 
-CHARSET : le nom du jeu de caractères utilisé par la base de données ('utf8'
+- `CHARSET` : le nom du jeu de caractères utilisé par la base de données ('utf8'
 ou 'latin1').
 
-`SQL_DIR` : le répertoire des scripts SQL de migration. Si cette valeur vaut
+- `SQL_DIR` : le répertoire des scripts SQL de migration. Si cette valeur vaut
 None, alors les scripts sont cherchés dans le répertoire du script de 
 migration.
 
-`CONFIGURATION` : un dictionnaire par plate-forme indiquant pour chacune : l'hôte
+- `CONFIGURATION` : un dictionnaire par plate-forme indiquant pour chacune : l'hôte
 de la base, le nom de la base de données, le nom de l'utilisateur et son mot de 
 passe.
 
