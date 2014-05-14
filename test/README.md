@@ -16,3 +16,4 @@ Rouler les tests
 ----------------
 
     python test_db_migration.py
+    python test_mysql_null_driver.py
