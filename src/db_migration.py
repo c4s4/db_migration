@@ -12,41 +12,56 @@ import datetime
 import subprocess
 
 
-class MysqlNullDriver(object):
+#pylint: disable=E1103
+class MysqlCommando(object):
 
     ISO_FORMAT = '%Y-%m-%d %H:%M:%S'
+    CASTS = (
+        (r'-?\d+', int),
+        (r'-?\d*\.?\d*([Ee][+-]?\d+)?', float),
+        (r'\d{4}-\d\d-\d\d \d\d:\d\d:\d\d', lambda d: datetime.datetime.strptime(d, MysqlCommando.ISO_FORMAT)),
+    )
+    QUERY_LAST_INSERT_ID = """
+    ;SELECT last_insert_id() as last_insert_id;
+    """
 
-    def __init__(self, hostname=None, database=None,
+    def __init__(self, configuration=None,
+                 hostname=None, database=None,
                  username=None, password=None,
-                 charset=None,
-                 configuration=None):
+                 encoding=None, cast=True):
         if hostname and database and username and password:
             self.hostname = hostname
             self.database = database
             self.username = username
             self.password = password
+            if encoding:
+                self.encoding = encoding
+            else:
+                self.encoding = None
         elif configuration:
             self.hostname = configuration['hostname']
             self.database = configuration['database']
             self.username = configuration['username']
             self.password = configuration['password']
+            if 'encoding' in configuration:
+                self.encoding = configuration['encoding']
+            else:
+                self.encoding = None
         else:
             raise Exception('Missing database configuration')
-        if charset:
-            self.charset = charset
-        elif 'charset' in configuration:
-            self.charset = configuration['charset']
-        else:
-            self.charset = None
+        self.cast = cast
 
-    def run_query(self, query, parameters=None):
-        query = self.process_parameters(query, parameters)
-        if self.charset:
+    def run_query(self, query, parameters=None, cast=None,
+                  last_insert_id=False):
+        query = self._process_parameters(query, parameters)
+        if last_insert_id:
+            query += self.QUERY_LAST_INSERT_ID
+        if self.encoding:
             command = ['mysql',
                        '-u%s' % self.username,
                        '-p%s' % self.password,
                        '-h%s' % self.hostname,
-                       '--default-character-set', self.charset,
+                       '--default-character-set=%s' % self.encoding,
                        '-B', '-e', query, self.database]
         else:
             command = ['mysql',
@@ -55,22 +70,22 @@ class MysqlNullDriver(object):
                        '-h%s' % self.hostname,
                        '-B', '-e', query, self.database]
         output = self._execute_with_output(command)
+        if cast is None:
+            cast = self.cast
         if output:
-            result = []
-            lines = output.strip().split('\n')
-            fields = lines[0].split('\t')
-            for line in lines[1:]:
-                values = line.split('\t')
-                result.append(dict(zip(fields, values)))
-            return tuple(result)
+            result = self._output_to_result(output, cast=cast)
+            if last_insert_id:
+                return int(result[0]['last_insert_id'])
+            else:
+                return result
 
-    def run_script(self, script):
-        if self.charset:
+    def run_script(self, script, cast=None):
+        if self.encoding:
             command = ['mysql',
                        '-u%s' % self.username,
                        '-p%s' % self.password,
                        '-h%s' % self.hostname,
-                       '--default-character-set', self.charset,
+                       '--default-character-set=%s' % self.encoding,
                        '-B', self.database]
         else:
             command = ['mysql',
@@ -78,16 +93,34 @@ class MysqlNullDriver(object):
                        '-p%s' % self.password,
                        '-h%s' % self.hostname,
                        '-B', self.database]
+        if cast is None:
+            cast = self.cast
         with open(script) as stdin:
             output = self._execute_with_output(command, stdin=stdin)
         if output:
-            result = []
-            lines = output.strip().split('\n')
-            fields = lines[0].split('\t')
-            for line in lines[1:]:
-                values = line.split('\t')
-                result.append(dict(zip(fields, values)))
-            return tuple(result)
+            return self._output_to_result(output, cast=cast)
+
+    def _output_to_result(self, output, cast):
+        result = []
+        lines = output.strip().split('\n')
+        fields = lines[0].split('\t')
+        for line in lines[1:]:
+            values = line.split('\t')
+            if cast:
+                values = MysqlCommando._cast_list(values)
+            result.append(dict(zip(fields, values)))
+        return tuple(result)
+
+    @staticmethod
+    def _cast_list(values):
+        return [MysqlCommando._cast(value) for value in values]
+
+    @staticmethod
+    def _cast(value):
+        for regexp, function in MysqlCommando.CASTS:
+            if re.match("^%s$" % regexp, value):
+                return function(value)
+        return value
 
     @staticmethod
     def _execute_with_output(command, stdin=None):
@@ -101,32 +134,32 @@ class MysqlNullDriver(object):
         return output
 
     @staticmethod
-    def process_parameters(query, parameters):
+    def _process_parameters(query, parameters):
         if not parameters:
             return query
         if isinstance(parameters, (list, tuple)):
-            parameters = tuple(MysqlNullDriver.format_parameters(parameters))
+            parameters = tuple(MysqlCommando._format_parameters(parameters))
         elif isinstance(parameters, dict):
-            parameters = dict(zip(parameters.keys(), MysqlNullDriver.format_parameters(parameters.values())))
+            parameters = dict(zip(parameters.keys(), MysqlCommando._format_parameters(parameters.values())))
         return query % parameters
 
     @staticmethod
-    def format_parameters(parameters):
-        return [MysqlNullDriver.format_parameter(param) for param in parameters]
+    def _format_parameters(parameters):
+        return [MysqlCommando._format_parameter(param) for param in parameters]
 
     @staticmethod
-    def format_parameter(parameter):
+    def _format_parameter(parameter):
         if isinstance(parameter, (int, long, float)):
             return str(parameter)
         elif isinstance(parameter, (str, unicode)):
-            return "'%s'" % MysqlNullDriver.escape_string(parameter)
+            return "'%s'" % MysqlCommando._escape_string(parameter)
         elif isinstance(parameter, datetime.datetime):
-            return "'%s'" % parameter.strftime(MysqlNullDriver.ISO_FORMAT)
+            return "'%s'" % parameter.strftime(MysqlCommando.ISO_FORMAT)
         else:
             raise Exception("Type '%s' is not managed as a query parameter" % parameter.__class__.__name__)
 
     @staticmethod
-    def escape_string(string):
+    def _escape_string(string):
         return string.replace("'", "''")
 
 
@@ -371,7 +404,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.db_config.update(self.LOCAL_DB_CONFIG)
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
-        self.mysql = MysqlNullDriver(configuration=self.db_config, charset=self.config.CHARSET)
+        self.mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
         self.meta_manager = MetaManager(self.mysql)
         # set default SQL directory
         if not self.sql_dir:
