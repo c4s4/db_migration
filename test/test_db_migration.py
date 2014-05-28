@@ -16,7 +16,8 @@ class TestDBMigration(unittest.TestCase):
         'username': 'test',
         'password': 'test',
     }
-    MYSQL = db_migration.MysqlNullDriver(configuration=DB_CONFIG)
+    ENCODING = 'utf8'
+    MYSQL = db_migration.MysqlCommando(configuration=DB_CONFIG, encoding=ENCODING)
     SCRIPT_DIR = os.path.dirname(__file__)
     ROOT_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, '..'))
     CONFIG_FILE = os.path.join(SCRIPT_DIR, '..', 'sql', 'db_configuration.py')
@@ -111,9 +112,9 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': '14', 'id': '1', 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': 'NULL', 'age': '13', 'id': '2', 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': 'NULL', 'age': '19', 'id': '3', 'name': 'Ophélie'},
+            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat', 'tatoo': 'NULL',      'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat', 'tatoo': 'NULL',      'age': 19, 'id': 3, 'name': 'Ophélie'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -134,9 +135,9 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'age': '14', 'id': '1', 'name': 'Réglisse'},
-            {'species': 'cat', 'age': '13', 'id': '2', 'name': 'Mignonne'},
-            {'species': 'cat', 'age': '19', 'id': '3', 'name': 'Ophélie'},
+            {'species': 'dog', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat', 'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat', 'age': 19, 'id': 3, 'name': 'Ophélie'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -158,9 +159,9 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': 'NULL', 'age': '6', 'id': '1', 'name': 'Milou'},
-            {'species': 'dog', 'tatoo': 'NULL', 'age': '11', 'id': '2', 'name': 'Médor'},
-            {'species': 'cat', 'tatoo': 'NULL', 'age': '10', 'id': '3', 'name': 'Félix'},
+            {'species': 'dog', 'tatoo': 'NULL', 'age': 6,  'id': 1, 'name': 'Milou'},
+            {'species': 'dog', 'tatoo': 'NULL', 'age': 11, 'id': 2, 'name': 'Médor'},
+            {'species': 'cat', 'tatoo': 'NULL', 'age': 10, 'id': 3, 'name': 'Félix'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -182,9 +183,9 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'age': '14', 'id': '1', 'name': 'Réglisse'},
-            {'species': 'cat', 'age': '13', 'id': '2', 'name': 'Mignonne'},
-            {'species': 'cat', 'age': '19', 'id': '3', 'name': 'Ophélie'},
+            {'species': 'dog', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat', 'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat', 'age': 19, 'id': 3, 'name': 'Ophélie'},
         )
         self.assert_data(EXPECTED_DATA)
         # migrate database to version 1.0
@@ -205,9 +206,9 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': '14', 'id': '1', 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': 'NULL', 'age': '13', 'id': '2', 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': 'NULL', 'age': '19', 'id': '3', 'name': 'Ophélie'},
+            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat', 'tatoo': 'NULL',      'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat', 'tatoo': 'NULL',      'age': 19, 'id': 3, 'name': 'Ophélie'},
         )
         self.assert_data(EXPECTED_DATA)
 
