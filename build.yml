@@ -13,82 +13,32 @@
     - rel_checks
     - py_check
     - py_test
-    - changelog
     - tag
 
 # Build properties
 - properties:
     name:          "db_migration"
-    version:       "0.6.4"
+    version:       "1.0.0"
     py_chk_cfg:    "pylint.cfg"
-    # clean stuff
+    tag_prefix:    "RELEASE"
     py_clean_dirs: :py_build_dir
     py_clean_files:
     - "**/*.pyc"
     - "**/*~"
     - "**/#*#"
-    # SVN stuff
-    tag_prefix:    "RELEASE"
-    svn_root:      "http://sources.srvc.cvf/projects/d/devqlt"
-    svn_trunk:     "#{svn_root}/trunk/#{name}"
-    svn_tags:      "#{svn_root}/tags/#{name}"
-    svn_tag_dir:   "#{svn_tags}/#{tag_prefix}-#{version}"
-    # ERB template for changelog
-    changelog:     "doc/changelog.yml"
-    changes_base:  "changelog.html"
-    changes_html:  "#{py_build_dir}/#{changes_base}"
-    changes_erb: |
-      <html>
-      <head>
-      <meta http-equiv=Content-Type content='text/html; charset=utf-8'> 
-      <title>Change Log Bee MBS</title>
-      </head>
-      <body>
-      <h1>Change Log Bee MBS</h1>
-      % require 'cgi'
-      % TRADS = { 'added'   => 'ajouts', 
-      %           'removed' => 'suppressions',
-      %           'fixed'   => 'corrections'}
-      % SECTIONS = TRADS.keys.sort
-      % for release in data
-      <h2>Release <%= release['release'] %> (<%= release['date'] %>)</h2>
-      <p><%= CGI.escapeHTML(release['description']) %></p>
-      %   for section in SECTIONS
-      %     if release[section]
-      <b><%= TRADS[section].capitalize %>:</b>
-      <ul>
-      %       for entry in release[section]
-      <li><%= CGI.escapeHTML(entry) %></li>
-      %       end
-      </ul>
-      %     end
-      %   end
-      % end
-      </body>
-      </html>
 
 # Build targets
-- target:      changelog
-  description: Generate changelog from YAML file
-  script:
-  - mkdir: :py_build_dir
-  - rb: 'data = YAML.load(File.read("#{changelog}"))'
-  - erb:
-      source:  :changes_erb
-      dest:    :changes_html
-      options: "%"
-
 - target:      tag
   description: SVN tag release
   script:
   - print: "Tagging project..."
-  - 'svn copy #{svn_trunk}/ #{svn_tag_dir}/ -m "Tag for release #{version}"'
+  - 'git tag "#{targ_prefix}-#{version}"'
 
 - target:      rel_check_changes
   description: Check that there are no uncommitted changes
   script:
   - print: "Checking that there are no uncommitted changes..."
-  - if: "`svn status`.length > 0"
+  - if: "`git diff`.length > 0"
     then:
     - throw: "There are uncommitted changes"
     else:
