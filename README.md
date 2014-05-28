@@ -277,11 +277,13 @@ Le script de migration gère deux tables de méta données dans la base :
 Elle contient les informations relatives au passage des scripts de migration.
 Exemple d'une telle table :
 
-| filename     | install_date        | success | install_id | error_message |
-|--------------|---------------------|---------|------------|---------------|
-| init/all.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
-| init/itg.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
-| 0.1/all.sql  | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
+  +--------------+---------------------+---------+------------+---------------+
+  | filename     | install_date        | success | install_id | error_message |
+  +--------------+---------------------+---------+------------+---------------+
+  | init/all.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
+  | init/itg.sql | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
+  | 0.1/all.sql  | 2012-04-18 14:17:20 |       1 |          1 | NULL          |
+  +--------------+---------------------+---------+------------+---------------+
 
 Cette table liste les scripts passés (avec le chemin relatif au répertoire du
 script) avec leur date d'installation, le succès et un éventuel message d'erreur.
@@ -292,10 +294,12 @@ De plus elle indique la référence de l'installation correspondante dans la tab
 
 Elle liste les migrations de la base :
 
-| id | major | minor | debug | start_date       | end_date         | success |
-|----|-------|-------|-------|------------------|------------------|---------|
-|  1 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
-|  2 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
+  +----+-------+-------+-------+------------------+------------------+---------+
+  | id | major | minor | debug | start_date       | end_date         | success |
+  +----+-------+-------+-------+------------------+------------------+---------+
+  |  1 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
+  |  2 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
+  +----+-------+-------+-------+------------------+------------------+---------+
 
 La table liste les migrations avec leur version (sous la forme 'major.minor.
 debug'), les dates de début et de fin de migration ainsi que le succès de la 
@@ -328,4 +332,3 @@ Néanmoins, si vous devez les créer à la main, voici les instructions :
         FOREIGN KEY (install_id)
         REFERENCES _install(id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Historique de passage des scripts';
-
