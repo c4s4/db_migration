@@ -33,7 +33,7 @@
   description: SVN tag release
   script:
   - print: "Tagging project..."
-  - 'git tag "#{targ_prefix}-#{version}"'
+  - 'git tag "#{tag_prefix}-#{version}" && git push --tag'
 
 - target:      rel_check_changes
   description: Check that there are no uncommitted changes
