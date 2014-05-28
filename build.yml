@@ -20,6 +20,7 @@
     name:          "db_migration"
     version:       "1.0.0"
     py_chk_cfg:    "pylint.cfg"
+    changelog:     "doc/changelog.yml"
     tag_prefix:    "RELEASE"
     py_clean_dirs: :py_build_dir
     py_clean_files:
