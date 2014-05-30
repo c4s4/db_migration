@@ -28,8 +28,12 @@ class TestDBMigration(unittest.TestCase):
     def dump_actual(self):
         #pylint: disable=E1121
         output_file = os.path.join(self.ROOT_DIR, 'build', 'actual.sql')
-        return db_migration.DBMigration.execute("mysqldump -d -h%s -u%s -p%s test pet > %s" %
-               (self.DB_CONFIG['hostname'], self.DB_CONFIG['username'], self.DB_CONFIG['password'], output_file))
+        return db_migration.DBMigration.\
+            execute("mysqldump -d -h%s -u%s -p%s test pet > %s" %
+                    (self.DB_CONFIG['hostname'], 
+                     self.DB_CONFIG['username'],
+                     self.DB_CONFIG['password'],
+                     output_file))
 
     @staticmethod
     def strip_query(query):
