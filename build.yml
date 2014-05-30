@@ -20,6 +20,7 @@
 - properties:
     name:          "db_migration"
     version:       "0.6.4"
+    py_chk_cfg:    "pylint.cfg"
     # clean stuff
     py_clean_dirs: :py_build_dir
     py_clean_files:
