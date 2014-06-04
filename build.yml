@@ -18,10 +18,9 @@
 # Build properties
 - properties:
     name:          "db_migration"
-    version:       "1.0.0"
+    version:       "0.6.4"
     py_chk_cfg:    "pylint.cfg"
-    changelog:     "doc/changelog.yml"
-    tag_prefix:    "RELEASE"
+    # clean stuff
     py_clean_dirs: :py_build_dir
     py_clean_files:
     - "**/*.pyc"
