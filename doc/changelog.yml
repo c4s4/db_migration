@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- release:     ?.?.?
+  date:        ????-??-??
+  description: ???
+  fixed:
+  - "Fixed README file syntax."
+
 - release:     1.0.0
   date:        2014-05-28
   description: "First public release"
