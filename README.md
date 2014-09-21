@@ -1,5 +1,5 @@
-DB Migrate
-==========
+DB Migration
+============
 
 Cet outil permet de gérer les migrations d'une base de données. On doit écrire
 les scripts de migration et les disposer dans des répertoires par version et par
