@@ -239,7 +239,7 @@ class TestDBMigration(unittest.TestCase):
             db_migration.DBMigration.parse_command_line(('-c', self.CONFIG_FILE, '-d', '-m', '1.0.0', 'itg', '1.2.3'))
             self.fail('Should have failed')
         except db_migration.AppException, e:
-            self.assertTrue("Migration script generation is incompatible with options dry_run local and dump" in e.message)
+            self.assertTrue("Migration script generation is incompatible with options dry_run and local" in e.message)
 
     def test_split_version(self):
         self.assertEqual([1, 2, 3], db_migration.DBMigration.split_version('1.2.3'))
