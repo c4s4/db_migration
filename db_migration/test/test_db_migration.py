@@ -61,9 +61,6 @@ class TestDBMigration(unittest.TestCase):
     @staticmethod
     def run_db_migration(options):
         db_migration.DBMigration.parse_command_line(options).run()
-        # script = os.path.join(self.ROOT_DIR, 'src', 'db_migration.py')
-        # command = "python %s %s" % (script, options)
-        # db_migration.DBMigration.execute(command)
 
     def assert_schema(self, expected):
         self.dump_expected(expected)
