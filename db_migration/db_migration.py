@@ -163,13 +163,11 @@ class MysqlCommando(object):
         return string.replace("'", "''")
 
 
-class MetaManager(object):
+class MysqlMetaManager(object):
 
     SQL_CREATE_META_INSTALL = """CREATE TABLE IF NOT EXISTS _install (
       id integer NOT NULL AUTO_INCREMENT,
-      major integer NOT NULL,
-      minor integer NOT NULL,
-      debug integer NOT NULL,
+      version varchar(20) NOT NULL,
       start_date datetime NOT NULL,
       end_date datetime,
       success tinyint NOT NULL,
@@ -188,8 +186,8 @@ class MetaManager(object):
     SQL_DROP_META_INSTALL = """DROP TABLE IF EXISTS _install"""
     SQL_DROP_META_SCRIPTS = """DROP TABLE IF EXISTS _scripts"""
     SQL_INSTALL_BEGIN = """INSERT INTO _install
-    (major, minor, debug, start_date, end_date, success)
-    VALUES (%(major)s, %(minor)s, %(debug)s, now(), null, 0);
+    (version, start_date, end_date, success)
+    VALUES (%(version)s, now(), null, 0);
     SELECT last_insert_id() AS ID;"""
     SQL_INSTALL_DONE = """UPDATE _install
     SET end_date = now(), success = %(success)s WHERE id = %(install_id)s"""
@@ -204,6 +202,9 @@ class MetaManager(object):
         self.mysql = mysql
         self.install_id = None
 
+    def run_script(self, script, cast=None):
+        return self.mysql.run_script(script=script, cast=cast)
+
     def meta_create(self, init):
         if init:
             self.mysql.run_query(query=self.SQL_DROP_META_SCRIPTS)
@@ -217,12 +218,8 @@ class MetaManager(object):
         except:
             raise AppException("Error accessing database")
 
-    def install_begin(self, version_array):
-        parameters = {
-            'major': version_array[0],
-            'minor': version_array[1],
-            'debug': version_array[2],
-        }
+    def install_begin(self, version):
+        parameters = {'version': version}
         self.install_id = int(self.mysql.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
 
     def install_done(self, success):
@@ -362,7 +359,6 @@ version     La version a installer (la version de l'archive par defaut)."""
         self.from_version = from_version
         self.sql_dir = sql_dir
         self.db_config = None
-        self.mysql = None
         self.meta_manager = None
         self.version_array = None
         self.config = self.load_configuration(configuration)
@@ -377,14 +373,16 @@ version     La version a installer (la version de l'archive par defaut)."""
     def load_configuration(configuration):
         if not configuration:
             configuration = os.path.join(os.path.dirname(__file__), 'db_configuration.py')
-        config = {}
+        if not os.path.isfile(configuration):
+            raise AppException("Configuration file '%s' not found" % configuration)
+        config = {'CONFIG_PATH': os.path.abspath(configuration)}
         execfile(configuration, {}, config)
         return Config(**config)
 
     def check_options(self):
         if self.version and self.all_scripts:
             raise AppException("You can't give a version with -a option")
-        if not self.platform in self.config.PLATFORMS:
+        if self.platform not in self.config.PLATFORMS:
             raise AppException('Platform must be one of %s' % ', '.join(sorted(self.config.PLATFORMS)))
         if self.from_version and (self.dry_run or self.local):
             raise AppException("Migration script generation is incompatible with options dry_run and local")
@@ -398,12 +396,18 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.db_config.update(self.LOCAL_DB_CONFIG)
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
-        self.mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
-        self.meta_manager = MetaManager(self.mysql)
+        if self.config.DATABASE == 'mysql':
+            mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
+            self.meta_manager = MysqlMetaManager(mysql)
+        else:
+            raise AppException("DATABASE must be 'mysql' or 'oracle'")
         # set default SQL directory
         if not self.sql_dir:
             if self.config.SQL_DIR:
-                self.sql_dir = self.SQL_DIR
+                if os.path.isabs(self.config.SQL_DIR):
+                    self.sql_dir = self.config.SQL_DIR
+                else:
+                    self.sql_dir = os.path.join(os.path.dirname(self.config.CONFIG_PATH), self.config.SQL_DIR)
             else:
                 self.sql_dir = os.path.abspath(os.path.dirname(__file__))
         # manage version
@@ -455,7 +459,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             print "Writing meta tables...",
             sys.stdout.flush()
         self.meta_manager.meta_create(self.init)
-        self.meta_manager.install_begin(self.version_array)
+        self.meta_manager.install_begin(self.version)
         if not self.mute:
             print "OK"
         install_success = True
@@ -469,7 +473,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                     if not self.mute:
                         print "Running script '%s'... " % script,
                         sys.stdout.flush()
-                    self.mysql.run_script(os.path.join(self.sql_dir, script))
+                    self.meta_manager.run_script(os.path.join(self.sql_dir, script))
                     if not self.mute:
                         print "OK"
                 except Exception, e:
