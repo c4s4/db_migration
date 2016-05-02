@@ -9,7 +9,7 @@
 #   removed:
 #   - "Description about what was removed."
 
-- release: 1.0.1
+- version: 1.0.1
   date:    2016-05-02
   summary: First Pypi release
   fixed:
@@ -17,6 +17,6 @@
   - "Changelog moved in project root directory."
   - "Added Makefile in project and made structure standard."
 
-- release: 1.0.0
+- version: 1.0.0
   date:    2014-05-28
   summary: "First public release"
