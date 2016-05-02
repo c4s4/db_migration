@@ -1,7 +1,7 @@
 # Each release must document an entry such as
-# - release:     1.0.0
-#   date:        2012-02-22
-#   description: "Release description"
+# - release: 1.0.0
+#   date:    2012-02-22
+#   summary: "Release description"
 #   fixed:
 #   - "Description about what was fixed."
 #   added:
@@ -14,6 +14,7 @@
   description: ???
   fixed:
   - "Fixed README file syntax."
+  - "Changelog moved in project root directory."
 
 - release:     1.0.0
   date:        2014-05-28
