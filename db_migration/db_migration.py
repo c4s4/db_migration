@@ -599,5 +599,9 @@ version     La version a installer (la version de l'archive par defaut)."""
         return version + [platform_index]
 
 
-if __name__ == '__main__':
+def main():
     DBMigration.run_command_line()
+
+
+if __name__ == '__main__':
+    main()

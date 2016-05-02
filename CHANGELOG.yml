@@ -1,0 +1,22 @@
+# Each release must document an entry such as
+# - release: 1.0.0
+#   date:    2012-02-22
+#   summary: "Release description"
+#   fixed:
+#   - "Description about what was fixed."
+#   added:
+#   - "Description about what was added."
+#   removed:
+#   - "Description about what was removed."
+
+- version: 1.0.1
+  date:    2016-05-02
+  summary: First Pypi release
+  fixed:
+  - "Fixed README file syntax."
+  - "Changelog moved in project root directory."
+  - "Added Makefile in project and made structure standard."
+
+- version: 1.0.0
+  date:    2014-05-28
+  summary: "First public release"
