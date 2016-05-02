@@ -284,8 +284,6 @@ class DBMigration(object):
             par défaut).
 -c config   Indique le fichier de configuration à utiliser (db_configuration.py
             dans le répertoire du script par défaut).
--p fichier  Realise un dump de la base de donnees dans le fichier avant
-            d'effectuer la migration.
 -m from     Ecrit le script de migration de la version 'from' vers 'version'
             sur la console. La valeur 'init' indique que tous les scripts de
             migration doivent être inclus.
@@ -310,7 +308,6 @@ version     La version a installer (la version de l'archive par defaut)."""
         mute = False
         sql_dir = None
         configuration = None
-        dump = None
         from_version = None
         platform = None
         version = None
@@ -318,7 +315,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             opts, args = getopt.getopt(arguments,
                                        "hdialus:c:p:m:",
                                        ["help", "dry-run", "init", "all", "local", "mute",
-                                        "sql-dir=", "config=", "dump=", "migration="])
+                                        "sql-dir=", "config=", "migration="])
         except getopt.GetoptError, exception:
             raise AppException("%s\n%s" % (exception.message, DBMigration.HELP))
         for opt, arg in opts:
@@ -339,8 +336,6 @@ version     La version a installer (la version de l'archive par defaut)."""
                 sql_dir = arg
             elif opt in ("-c", "--config"):
                 configuration = arg
-            elif opt in ("-p", "--dump"):
-                dump = arg
             elif opt in ("-m", "--migration"):
                 from_version = arg
             else:
@@ -353,10 +348,10 @@ version     La version a installer (la version de l'archive par defaut)."""
         if len(args) > 2:
             raise AppException("Too many arguments on command line:\n%s" % DBMigration.HELP)
         return DBMigration(dry_run=dry_run, init=init, all_scripts=all_scripts, local=local, mute=mute,
-                           platform=platform, version=version, dump=dump, from_version=from_version,
+                           platform=platform, version=version, from_version=from_version,
                            sql_dir=sql_dir, configuration=configuration)
 
-    def __init__(self, dry_run, init, all_scripts, local, mute, platform, version, dump, from_version, sql_dir, configuration):
+    def __init__(self, dry_run, init, all_scripts, local, mute, platform, version, from_version, sql_dir, configuration):
         self.dry_run = dry_run
         self.init = init
         self.all_scripts = all_scripts
@@ -364,7 +359,6 @@ version     La version a installer (la version de l'archive par defaut)."""
         self.mute = mute
         self.platform = platform
         self.version = version
-        self.dump = dump
         self.from_version = from_version
         self.sql_dir = sql_dir
         self.db_config = None
@@ -392,8 +386,8 @@ version     La version a installer (la version de l'archive par defaut)."""
             raise AppException("You can't give a version with -a option")
         if not self.platform in self.config.PLATFORMS:
             raise AppException('Platform must be one of %s' % ', '.join(sorted(self.config.PLATFORMS)))
-        if self.from_version and (self.dry_run or self.local or self.dump):
-            raise AppException("Migration script generation is incompatible with options dry_run local and dump")
+        if self.from_version and (self.dry_run or self.local):
+            raise AppException("Migration script generation is incompatible with options dry_run and local")
         if self.init and self.platform in self.config.CRITICAL_PLATFORMS and not self.local:
             raise AppException("You can't initialize critical platforms (%s)" % ' and '.join(sorted(self.config.CRITICAL_PLATFORMS)))
 
@@ -432,8 +426,6 @@ version     La version a installer (la version de l'archive par defaut)."""
             if not self.mute:
                 print "Version '%s' on platform '%s'" % (self.version, self.db_config['hostname'])
                 print "Using base '%(database)s' as user '%(username)s'" % self.db_config
-            if self.dump:
-                self.dump_database()
             if self.dry_run:
                 self.migrate_dry()
             else:
@@ -448,16 +440,6 @@ version     La version a installer (la version de l'archive par defaut)."""
             print "-- Script '%s'" % script
             print open(os.path.join(self.sql_dir, script)).read().strip()
             print
-
-    def dump_database(self):
-        if not self.mute:
-            print "Dumping database in file '%s'..." % self.dump,
-            sys.stdout.flush()
-        self.execute("mysqldump -u%s -p%s -h%s --complete-insert --opt -r%s %s" %
-                     (self.db_config['username'], self.db_config['password'], self.db_config['hostname'],
-                      self.dump, self.db_config['database']))
-        if not self.mute:
-            print "OK"
 
     def migrate_dry(self):
         print "Testing database connection...",

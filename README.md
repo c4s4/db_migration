@@ -149,8 +149,6 @@ python db_migration.py [-h] [-d] [-i] [-a] [-l] [-u] [-s sql_dir] [-c config]
             par défaut).
 -c config   Indique le fichier de configuration à utiliser (db_configuration.py
             dans le répertoire du script par défaut).
--p fichier  Realise un dump de la base de donnees dans le fichier avant
-            d'effectuer la migration.
 -m from     Ecrit le script de migration de la version 'from' vers 'version'
             sur la console. La valeur 'init' indique que tous les scripts de
             migration doivent être inclus.
@@ -183,11 +181,6 @@ version     La version a installer (la version de l'archive par defaut).
 - L'option `-s sql_dir` indique où se trouvent les scripts de migration SQL.
   Par défaut, les scripts sont cherchés dans le répertoire du script de
   migration.
-
-- L'option `-p fichier` permet de réaliser un dump de la base de données dans le
-  fichier passé en paramètre. Ce fichier peut être utlisé pour gérer un retour
-  arrière. A noter que les tables meta (`_install` et `_scripts`) font partie du
-  dump.
 
 - L'option `-m from` permet de générer la requête SQL de migration de la version
   `from` vers la version `version` passée en ligne de commande. A noter que
@@ -234,13 +227,6 @@ Pour installer la base d'ITG en version 1.2.3 en local :
 
 ```sh
 ./db_migration.py -l itg 1.2.3
-```
-
-Pour migrer la base d'ITG vers la version 1.2.3 et faire un dump de l'état
-actuel dans le fichier `dump.sql` :
-
-```sh
-./db_migration.py -p dump.sql itg 1.2.3
 ```
 
 Pour générer le script de migration SQL de la base d'ITG de la version 1.0.0

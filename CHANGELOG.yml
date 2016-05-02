@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 1.0.2
+  date:    2016-05-02
+  summary: Removed dump option
+  removed:
+  - "Removed dump command line option '-d dump.sql'."
+
 - version: 1.0.1
   date:    2016-05-02
   summary: First Pypi release
