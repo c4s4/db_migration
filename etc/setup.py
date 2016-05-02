@@ -13,4 +13,7 @@ setup(
     license = 'Apache Software License',
     description = 'db_migration is a database migration tool',
     long_description=open('README.rst').read(),
+    entry_points = {
+        'console_scripts': ['db_migration=db_migration:main'],
+    }
 )
