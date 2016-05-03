@@ -18,7 +18,7 @@ class TestDBMigration(unittest.TestCase):
     MYSQL = db_migration.MysqlCommando(configuration=DB_CONFIG, encoding=ENCODING)
     SCRIPT_DIR = os.path.dirname(__file__)
     ROOT_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, '..', '..'))
-    CONFIG_FILE = os.path.join(SCRIPT_DIR, 'sql', 'db_configuration.py')
+    CONFIG_FILE = os.path.join(SCRIPT_DIR, 'sql', 'mysql', 'db_configuration.py')
 
     ###########################################################################
     #                                UTILITIES                                #
@@ -95,8 +95,8 @@ class TestDBMigration(unittest.TestCase):
 
     def test_init_nominal(self):
         self.run_db_migration(['-ilu',
-                               '-c', '%s/db_migration/test/sql/db_configuration.py' % self.ROOT_DIR,
-                               '-s', '%s/db_migration/test/sql' % self.ROOT_DIR,
+                               '-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                'itg', '0.1'])
         EXPECTED_SCHEMA = """
         DROP TABLE IF EXISTS `pet`;
@@ -119,8 +119,8 @@ class TestDBMigration(unittest.TestCase):
 
     def test_init_version(self):
         self.run_db_migration(['-ilu',
-                               '-c', '%s/db_migration/test/sql/db_configuration.py' % self.ROOT_DIR,
-                               '-s', '%s/db_migration/test/sql' % self.ROOT_DIR,
+                               '-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                'itg', '0.0'])
         EXPECTED_SCHEMA = """
         DROP TABLE IF EXISTS `pet`;
@@ -142,8 +142,8 @@ class TestDBMigration(unittest.TestCase):
 
     def test_init_prod(self):
         self.run_db_migration(['-ilu',
-                               '-c', '%s/db_migration/test/sql/db_configuration.py' % self.ROOT_DIR,
-                               '-s', '%s/db_migration/test/sql' % self.ROOT_DIR,
+                               '-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                'prod', '0.1'])
         EXPECTED_SCHEMA = """
         DROP TABLE IF EXISTS `pet`;
@@ -167,8 +167,8 @@ class TestDBMigration(unittest.TestCase):
     def test_migrate_nominal(self):
         # initialize database in version 0.0
         self.run_db_migration(['-ilu',
-                               '-c', '%s/db_migration/test/sql/db_configuration.py' % self.ROOT_DIR,
-                               '-s', '%s/db_migration/test/sql' % self.ROOT_DIR,
+                               '-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                'itg', '0.0'])
         EXPECTED_SCHEMA = """
         DROP TABLE IF EXISTS `pet`;
@@ -189,8 +189,8 @@ class TestDBMigration(unittest.TestCase):
         self.assert_data(EXPECTED_DATA)
         # migrate database to version 1.0
         self.run_db_migration(['-lu',
-                               '-c', '%s/db_migration/test/sql/db_configuration.py' % self.ROOT_DIR,
-                               '-s', '%s/db_migration/test/sql' % self.ROOT_DIR,
+                               '-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                'itg', '1.0'])
         EXPECTED_SCHEMA = """
         DROP TABLE IF EXISTS `pet`;
