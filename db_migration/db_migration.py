@@ -168,7 +168,7 @@ class MysqlCommando(object):
 class SqlplusCommando(object):
 
     CATCH_ERRORS = "WHENEVER SQLERROR EXIT SQL.SQLCODE;\nWHENEVER OSERROR EXIT 9;\n"
-    EXIT_COMMAND = "exit"
+    EXIT_COMMAND = "\ncommit;\nexit;\n"
     ISO_FORMAT = '%Y-%m-%d %H:%M:%S'
 
     def __init__(self, configuration=None,
@@ -200,16 +200,7 @@ class SqlplusCommando(object):
             raise Exception("Script '%s' was not found" % script)
         with open(script) as stream:
             source = stream.read()
-        source = self._process_query(query=source)
-        filename = tempfile.mkstemp(prefix='sqlplus_commando-',
-                                    suffix='.sql')[1]
-        with open(filename, 'wb') as stream:
-            stream.write(source)
-        try:
-            return self._run_command("@%s" % filename, cast=cast,
-                                     check_unknown_command=check_unknown_command)
-        finally:
-            os.remove(filename)
+        return self.run_query(query=source, cast=cast, check_unknown_command=check_unknown_command)
 
     def _process_query(self, query, parameters={}):
         if parameters:
@@ -458,6 +449,25 @@ class MysqlMetaManager(object):
 
 class SqlplusMetaManager(object):
 
+    SQL_CLEAR_DATABASE = """
+BEGIN
+  FOR cur_rec IN (SELECT object_name, object_type
+                  FROM   user_objects
+                  WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
+    BEGIN
+      IF cur_rec.object_type = 'TABLE' AND cur_rec.object_name NOT LIKE '%_' THEN
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
+      ELSE
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"';
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.put_line('FAILED: DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"');
+    END;
+  END LOOP;
+END;
+/
+"""
     SQL_TABLE_EXIST = """
 SELECT count(*) AS EXIST FROM USER_TABLES
 WHERE TABLE_NAME = %(table)s;
@@ -529,6 +539,7 @@ SELECT 42 FROM DUAL;
 
     def meta_create(self, init):
         if init:
+            self.sqlplus.run_query(query=self.SQL_CLEAR_DATABASE)
             if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
                 self.sqlplus.run_query(query=self.SQL_DROP_META_SCRIPTS)
             if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
@@ -874,7 +885,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             dir_name = os.path.dirname(script)
             script_name = dir_name[dir_name.rindex('/')+1:] + os.path.sep + os.path.basename(script)
             script_version = self.split_version(dir_name[dir_name.rindex('/')+1:])
-            script_platform = os.path.basename(script)[:-4]
+            script_platform = os.path.basename(script)[:min(script.index('-'), script.index('.'))]
             if script_platform == 'all' or script_platform == self.platform:
                 if script_version:
                     if self.from_version == 'init' or script_version > self.from_version:
@@ -893,7 +904,8 @@ version     La version a installer (la version de l'archive par defaut)."""
             dir_name = os.path.dirname(script)
             script_name = dir_name[dir_name.rindex('/')+1:] + os.path.sep + os.path.basename(script)
             script_version = self.split_version(dir_name[dir_name.rindex('/')+1:])
-            script_platform = os.path.basename(script)[:-4]
+            base = os.path.basename(script)
+            script_platform = base[:min(base.index('-'), base.index('.'))]
             if script_platform == 'all' or script_platform == self.platform:
                 if script_version:
                     if self.all_scripts or self.version_array >= script_version:
@@ -902,16 +914,18 @@ version     La version a installer (la version de l'archive par defaut)."""
                 else:
                     if self.init:
                         init_script_directory_list.append(script_name)
-        return sorted(init_script_directory_list) + sorted(version_script_directory_list, key=self.script_file_sorter)
+        return sorted(init_script_directory_list) + \
+               sorted(version_script_directory_list, key=self.script_file_sorter)
 
     def script_file_sorter(self, filename):
-        platform = os.path.basename(filename)[:-4]
+        base = os.path.basename(filename)
+        platform = base[:min(base.index('-'), base.index('.'))]
         if platform == 'all':
             platform_index = 0
         else:
             platform_index = 1
-        version = self.split_version(filename[:filename.index('/')])
-        return version + [platform_index]
+        version = [int(c) for c in self.split_version(filename[:filename.index('/')])]
+        return (version,  platform_index, base)
 
 
 def main():
