@@ -9,7 +9,9 @@ import glob
 import getopt
 import getpass
 import datetime
+import tempfile
 import subprocess
+import HTMLParser
 
 
 #pylint: disable=E1103
@@ -163,13 +165,220 @@ class MysqlCommando(object):
         return string.replace("'", "''")
 
 
-class MetaManager(object):
+class SqlplusCommando(object):
+
+    CATCH_ERRORS = "WHENEVER SQLERROR EXIT SQL.SQLCODE;\nWHENEVER OSERROR EXIT 9;\n"
+    EXIT_COMMAND = "exit"
+    ISO_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+    def __init__(self, configuration=None,
+                 hostname=None, database=None,
+                 username=None, password=None,
+                 cast=True):
+        if hostname and database and username and password:
+            self.hostname = hostname
+            self.database = database
+            self.username = username
+            self.password = password
+        elif configuration:
+            self.hostname = configuration['hostname']
+            self.database = configuration['database']
+            self.username = configuration['username']
+            self.password = configuration['password']
+        else:
+            raise Exception('Missing database configuration')
+        self.cast = cast
+
+    def run_query(self, query, parameters={}, cast=True,
+                  check_unknown_command=True):
+        command = self._process_query(query=query, parameters=parameters)
+        return self._run_command(command, cast=cast,
+                                 check_unknown_command=check_unknown_command)
+
+    def run_script(self, script, cast=True, check_unknown_command=True):
+        if not os.path.isfile(script):
+            raise Exception("Script '%s' was not found" % script)
+        with open(script) as stream:
+            source = stream.read()
+        source = self._process_query(query=source)
+        filename = tempfile.mkstemp(prefix='sqlplus_commando-',
+                                    suffix='.sql')[1]
+        with open(filename, 'wb') as stream:
+            stream.write(source)
+        try:
+            return self._run_command("@%s" % filename, cast=cast,
+                                     check_unknown_command=check_unknown_command)
+        finally:
+            os.remove(filename)
+
+    def _process_query(self, query, parameters={}):
+        if parameters:
+            query = self._process_parameters(query, parameters)
+        return self.CATCH_ERRORS + query
+
+    def _run_command(self, command, cast, check_unknown_command):
+        connection_url = self._get_connection_url()
+        session = subprocess.Popen(['sqlplus', '-S', '-L', '-M', 'HTML ON',
+                                    connection_url],
+                                   stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        session.stdin.write(command)
+        output, _ = session.communicate(self.EXIT_COMMAND)
+        code = session.returncode
+        if code != 0:
+            raise Exception(OracleErrorParser.parse(output))
+        else:
+            if output:
+                result = OracleResponseParser.parse(output, cast=cast,
+                                                    check_unknown_command=check_unknown_command)
+                return result
+
+    def _get_connection_url(self):
+        return "%s/%s@%s/%s" % \
+               (self.username, self.password, self.hostname, self.database)
+
+    @staticmethod
+    def _process_parameters(query, parameters):
+        if not parameters:
+            return query
+        if isinstance(parameters, (list, tuple)):
+            parameters = tuple(SqlplusCommando._format_parameters(parameters))
+        elif isinstance(parameters, dict):
+            values = SqlplusCommando._format_parameters(parameters.values())
+            parameters = dict(zip(parameters.keys(), values))
+        return query % parameters
+
+    @staticmethod
+    def _format_parameters(parameters):
+        return [SqlplusCommando._format_parameter(param) for
+                param in parameters]
+
+    @staticmethod
+    def _format_parameter(parameter):
+        if isinstance(parameter, (int, long, float)):
+            return str(parameter)
+        elif isinstance(parameter, (str, unicode)):
+            return "'%s'" % SqlplusCommando._escape_string(parameter)
+        elif isinstance(parameter, datetime.datetime):
+            return "'%s'" % parameter.strftime(SqlplusCommando.ISO_FORMAT)
+        elif isinstance(parameter, list):
+            return "(%s)" % ', '.join([SqlplusCommando._format_parameter(e)
+                                       for e in parameter])
+        elif parameter is None:
+            return "NULL"
+        else:
+            raise Exception("Type '%s' is not managed as a query parameter" %
+                            parameter.__class__.__name__)
+
+    @staticmethod
+    def _escape_string(string):
+        return string.replace("'", "''")
+
+
+class OracleResponseParser(HTMLParser.HTMLParser):
+
+    DATE_FORMAT = '%d/%m/%y %H:%M:%S'
+    UNKNOWN_COMMAND = 'SP2-0734: unknown command'
+    CASTS = (
+        (r'-?\d+', int),
+        (r'-?\d*,?\d*([Ee][+-]?\d+)?', lambda f: float(f.replace(',', '.'))),
+        (r'\d\d/\d\d/\d\d \d\d:\d\d:\d\d,\d*',
+         lambda d: datetime.datetime.strptime(d[:17],
+                                              OracleResponseParser.DATE_FORMAT)),
+        (r'NULL', lambda d: None),
+    )
+
+    def __init__(self, cast):
+        HTMLParser.HTMLParser.__init__(self)
+        self.cast = cast
+        self.active = False
+        self.result = []
+        self.fields = []
+        self.values = []
+        self.header = True
+        self.data = ''
+
+    @staticmethod
+    def parse(source, cast, check_unknown_command):
+        if OracleResponseParser.UNKNOWN_COMMAND in source and check_unknown_command:
+            raise Exception(OracleErrorParser.parse(source))
+        parser = OracleResponseParser(cast)
+        parser.feed(source)
+        return tuple(parser.result)
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'table':
+            self.active = True
+        elif self.active:
+            if tag == 'th':
+                self.header = True
+            elif tag == 'td':
+                self.header = False
+
+    def handle_endtag(self, tag):
+        if tag == 'table':
+            self.active = False
+        elif self.active:
+            if tag == 'tr' and not self.header:
+                row = dict(zip(self.fields, self.values))
+                self.result.append(row)
+                self.values = []
+            elif tag == 'th':
+                self.fields.append(self.data.strip())
+                self.data = ''
+            elif tag == 'td':
+                data = self.data.strip()
+                if self.cast:
+                    data = self._cast(data)
+                self.values.append(data)
+                self.data = ''
+
+    def handle_data(self, data):
+        if self.active:
+            self.data += data
+
+    @staticmethod
+    def _cast(value):
+        for regexp, function in OracleResponseParser.CASTS:
+            if re.match("^%s$" % regexp, value):
+                return function(value)
+        return value
+
+
+class OracleErrorParser(HTMLParser.HTMLParser):
+
+    UNKNOWN_COMMAND = 'SP2-0734: unknown command'
+
+    def __init__(self):
+        HTMLParser.HTMLParser.__init__(self)
+        self.active = False
+        self.message = ''
+
+    @staticmethod
+    def parse(source):
+        parser = OracleErrorParser()
+        parser.feed(source)
+        return '\n'.join([l for l in parser.message.split('\n') if l.strip() != ''])
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'body':
+            self.active = True
+
+    def handle_endtag(self, tag):
+        if tag == 'body':
+            self.active = False
+
+    def handle_data(self, data):
+        if self.active:
+            self.message += data
+
+
+class MysqlMetaManager(object):
 
     SQL_CREATE_META_INSTALL = """CREATE TABLE IF NOT EXISTS _install (
       id integer NOT NULL AUTO_INCREMENT,
-      major integer NOT NULL,
-      minor integer NOT NULL,
-      debug integer NOT NULL,
+      version varchar(20) NOT NULL,
       start_date datetime NOT NULL,
       end_date datetime,
       success tinyint NOT NULL,
@@ -188,8 +397,8 @@ class MetaManager(object):
     SQL_DROP_META_INSTALL = """DROP TABLE IF EXISTS _install"""
     SQL_DROP_META_SCRIPTS = """DROP TABLE IF EXISTS _scripts"""
     SQL_INSTALL_BEGIN = """INSERT INTO _install
-    (major, minor, debug, start_date, end_date, success)
-    VALUES (%(major)s, %(minor)s, %(debug)s, now(), null, 0);
+    (version, start_date, end_date, success)
+    VALUES (%(version)s, now(), null, 0);
     SELECT last_insert_id() AS ID;"""
     SQL_INSTALL_DONE = """UPDATE _install
     SET end_date = now(), success = %(success)s WHERE id = %(install_id)s"""
@@ -204,6 +413,9 @@ class MetaManager(object):
         self.mysql = mysql
         self.install_id = None
 
+    def run_script(self, script, cast=None):
+        return self.mysql.run_script(script=script, cast=cast)
+
     def meta_create(self, init):
         if init:
             self.mysql.run_query(query=self.SQL_DROP_META_SCRIPTS)
@@ -217,12 +429,8 @@ class MetaManager(object):
         except:
             raise AppException("Error accessing database")
 
-    def install_begin(self, version_array):
-        parameters = {
-            'major': version_array[0],
-            'minor': version_array[1],
-            'debug': version_array[2],
-        }
+    def install_begin(self, version):
+        parameters = {'version': version}
         self.install_id = int(self.mysql.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
 
     def install_done(self, success):
@@ -246,6 +454,121 @@ class MetaManager(object):
             'script': script,
         }
         return int(self.mysql.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['installed']) > 0
+
+
+class SqlplusMetaManager(object):
+
+    SQL_TABLE_EXIST = """
+SELECT count(*) AS EXIST FROM USER_TABLES
+WHERE TABLE_NAME = %(table)s;
+"""
+    SQL_CREATE_META_INSTALL = """
+CREATE TABLE INSTALL_ (
+  ID NUMBER(10) NOT NULL,
+  VERSION VARCHAR(20) NOT NULL,
+  START_DATE TIMESTAMP NOT NULL,
+  END_DATE TIMESTAMP,
+  SUCCESS NUMBER(1) NOT NULL,
+  PRIMARY KEY (ID)
+);
+CREATE SEQUENCE INSTALL_SEQUENCE
+  START WITH 1
+  INCREMENT BY 1
+  CACHE 100;
+"""
+    SQL_CREATE_META_SCRIPTS = """
+CREATE TABLE SCRIPTS_ (
+  FILENAME VARCHAR(255) NOT NULL,
+  INSTALL_DATE TIMESTAMP NOT NULL,
+  SUCCESS NUMBER(1) NOT NULL,
+  INSTALL_ID NUMBER(10) NOT NULL,
+  ERROR_MESSAGE VARCHAR(4000),
+  CONSTRAINT FK_INSTALL_ID
+    FOREIGN KEY (INSTALL_ID)
+    REFERENCES INSTALL_(ID)
+);
+"""
+    SQL_DROP_META_INSTALL = """
+DROP TABLE INSTALL_;
+DROP SEQUENCE INSTALL_SEQUENCE;
+"""
+    SQL_DROP_META_SCRIPTS = """
+DROP TABLE SCRIPTS_;
+"""
+    SQL_INSTALL_BEGIN = """
+INSERT INTO INSTALL_
+  (ID, VERSION, START_DATE, END_DATE, SUCCESS)
+VALUES (INSTALL_SEQUENCE.nextval, %(version)s, CURRENT_TIMESTAMP, null, 0);
+SELECT max(id) AS ID FROM INSTALL_;
+"""
+    SQL_INSTALL_DONE = """
+UPDATE INSTALL_
+   SET END_DATE = CURRENT_TIMESTAMP, SUCCESS = %(success)s
+ WHERE ID = %(install_id)s;
+"""
+    SQL_SCRIPT_INSTALL = """
+INSERT INTO SCRIPTS_
+  (FILENAME, INSTALL_DATE, SUCCESS, INSTALL_ID, ERROR_MESSAGE)
+VALUES
+  (%(script)s, CURRENT_TIMESTAMP, %(success)s, %(install_id)s, %(message)s);
+"""
+    SQL_SCRIPT_INSTALLED = """
+SELECT COUNT(*) AS INSTALLED FROM SCRIPTS_
+WHERE FILENAME = %(script)s AND SUCCESS = 1;
+"""
+    SQL_TEST_META = """
+SELECT 42 FROM DUAL;
+"""
+
+    def __init__(self, sqlplus):
+        self.sqlplus = sqlplus
+        self.install_id = None
+
+    def run_script(self, script, cast=None):
+        return self.sqlplus.run_script(script=script, cast=cast)
+
+    def meta_create(self, init):
+        if init:
+            if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
+                self.sqlplus.run_query(query=self.SQL_DROP_META_SCRIPTS)
+            if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
+                self.sqlplus.run_query(query=self.SQL_DROP_META_INSTALL)
+        if not self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
+            self.sqlplus.run_query(query=self.SQL_CREATE_META_INSTALL)
+        if not self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
+            self.sqlplus.run_query(query=self.SQL_CREATE_META_SCRIPTS)
+
+    def database_test(self):
+        try:
+            self.sqlplus.run_query(query=self.SQL_TEST_META)
+        except:
+            raise AppException("Error accessing database")
+
+    def install_begin(self, version):
+        parameters = {'version': version}
+        self.install_id = int(self.sqlplus.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
+
+    def install_done(self, success):
+        parameters = {
+            'success': 1 if success else 0,
+            'install_id': self.install_id,
+        }
+        self.sqlplus.run_query(query=self.SQL_INSTALL_DONE, parameters=parameters)
+
+    def script_run(self, script, success, message):
+        parameters = {
+            'script': script,
+            'success': 1 if success else 0,
+            'message': message if message else '',
+            'install_id': self.install_id,
+        }
+        self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALL, parameters=parameters)
+
+    def script_passed(self, script):
+        parameters = {
+            'script': script,
+        }
+        return int(self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['INSTALLED']) > 0
 
 
 class AppException(Exception):
@@ -362,7 +685,6 @@ version     La version a installer (la version de l'archive par defaut)."""
         self.from_version = from_version
         self.sql_dir = sql_dir
         self.db_config = None
-        self.mysql = None
         self.meta_manager = None
         self.version_array = None
         self.config = self.load_configuration(configuration)
@@ -377,14 +699,16 @@ version     La version a installer (la version de l'archive par defaut)."""
     def load_configuration(configuration):
         if not configuration:
             configuration = os.path.join(os.path.dirname(__file__), 'db_configuration.py')
-        config = {}
+        if not os.path.isfile(configuration):
+            raise AppException("Configuration file '%s' not found" % configuration)
+        config = {'CONFIG_PATH': os.path.abspath(configuration)}
         execfile(configuration, {}, config)
         return Config(**config)
 
     def check_options(self):
         if self.version and self.all_scripts:
             raise AppException("You can't give a version with -a option")
-        if not self.platform in self.config.PLATFORMS:
+        if self.platform not in self.config.PLATFORMS:
             raise AppException('Platform must be one of %s' % ', '.join(sorted(self.config.PLATFORMS)))
         if self.from_version and (self.dry_run or self.local):
             raise AppException("Migration script generation is incompatible with options dry_run and local")
@@ -398,12 +722,21 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.db_config.update(self.LOCAL_DB_CONFIG)
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
-        self.mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
-        self.meta_manager = MetaManager(self.mysql)
+        if self.config.DATABASE == 'mysql':
+            mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
+            self.meta_manager = MysqlMetaManager(mysql)
+        elif self.config.DATABASE == 'oracle':
+            sqlplus = SqlplusCommando(configuration=self.db_config)
+            self.meta_manager = SqlplusMetaManager(sqlplus)
+        else:
+            raise AppException("DATABASE must be 'mysql' or 'oracle'")
         # set default SQL directory
         if not self.sql_dir:
             if self.config.SQL_DIR:
-                self.sql_dir = self.SQL_DIR
+                if os.path.isabs(self.config.SQL_DIR):
+                    self.sql_dir = self.config.SQL_DIR
+                else:
+                    self.sql_dir = os.path.join(os.path.dirname(self.config.CONFIG_PATH), self.config.SQL_DIR)
             else:
                 self.sql_dir = os.path.abspath(os.path.dirname(__file__))
         # manage version
@@ -455,7 +788,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             print "Writing meta tables...",
             sys.stdout.flush()
         self.meta_manager.meta_create(self.init)
-        self.meta_manager.install_begin(self.version_array)
+        self.meta_manager.install_begin(self.version)
         if not self.mute:
             print "OK"
         install_success = True
@@ -469,7 +802,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                     if not self.mute:
                         print "Running script '%s'... " % script,
                         sys.stdout.flush()
-                    self.mysql.run_script(os.path.join(self.sql_dir, script))
+                    self.meta_manager.run_script(os.path.join(self.sql_dir, script))
                     if not self.mute:
                         print "OK"
                 except Exception, e:

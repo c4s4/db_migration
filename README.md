@@ -297,12 +297,12 @@ De plus elle indique la référence de l'installation correspondante dans la tab
 Elle liste les migrations de la base :
 
 ```sql
-+----+-------+-------+-------+------------------+------------------+---------+
-| id | major | minor | debug | start_date       | end_date         | success |
-+----+-------+-------+-------+------------------+------------------+---------+
-|  1 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
-|  2 |     0 |     0 |     0 | 2012-04-18 14... | 2012-04-18 14... |       1 |
-+----+-------+-------+-------+------------------+------------------+---------+
++----+---------+------------------+------------------+---------+
+| id | version | start_date       | end_date         | success |
++----+---------+------------------+------------------+---------+
+|  1 | 0.1     | 2012-04-18 14... | 2012-04-18 14... |       1 |
+|  2 | 1.0     | 2012-04-18 14... | 2012-04-18 14... |       1 |
++----+---------+------------------+------------------+---------+
 ```
 
 La table liste les migrations avec leur version (sous la forme 'major.minor.
@@ -318,9 +318,7 @@ Néanmoins, si vous devez les créer à la main, voici les instructions :
 ```sql
 CREATE TABLE IF NOT EXISTS _install (
   id integer NOT NULL AUTO_INCREMENT,
-  major integer NOT NULL COMMENT 'Numero de version majeur de la base',
-  minor integer NOT NULL COMMENT 'Numero de version mineur de la base',
-  debug integer NOT NULL COMMENT 'Numero de version de deboggage de la base',
+  version varchar(20) NOT NULL COMMENT 'Numero de version de la base',
   start_date datetime NOT NULL COMMENT 'Date de debut d''installation',
   end_date datetime COMMENT 'Date de fin d''installation',
   success boolean NOT NULL COMMENT 'Indicateur de succes de l''installation',

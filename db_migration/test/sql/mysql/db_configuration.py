@@ -8,9 +8,11 @@ DEFAULT_PLATFORM = PLATFORMS[0]
 CRITICAL_PLATFORMS = PLATFORMS[1:]
 # charset of the database
 CHARSET = 'utf8'
-# directory for SQL scripts (None means directory of the script)
-SQL_DIR = None
+# directory for SQL scripts (relative to this configuration file)
+SQL_DIR = "."
 
+# Database name ('mysql' or 'oracle')
+DATABASE = 'mysql'
 # Database configuration for environments
 CONFIGURATION = {
     'itg': {

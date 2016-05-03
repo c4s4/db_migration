@@ -31,7 +31,7 @@ check:
 
 test: check
 	@echo "$(YELLOW)Running unit tests$(CLEAR)"
-	. venv/bin/activate && python -m $(NAME).test.test_$(NAME)
+	. venv/bin/activate && python -m $(NAME).test.test_mysql_$(NAME)
 
 package: test clean
 	@echo "$(YELLOW)Building package$(CLEAR)"

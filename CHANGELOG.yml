@@ -9,6 +9,16 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.0.0
+  date:    2016-05-03
+  summary: Added Oracle support
+  added:
+  - "Added Oracle support using sqlplus_commando driver."
+  fixed:
+  - "Path to SQL directory was broken."
+  - "Version is stored as a single field 'version' in _install meta table (no
+    more 'major', 'minor' and 'debug' fields)."
+
 - version: 1.0.2
   date:    2016-05-02
   summary: Removed dump option
