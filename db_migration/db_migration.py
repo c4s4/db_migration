@@ -455,7 +455,7 @@ BEGIN
                   FROM   user_objects
                   WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
     BEGIN
-      IF cur_rec.object_type = 'TABLE' AND cur_rec.object_name NOT LIKE '%_' THEN
+      IF cur_rec.object_type = 'TABLE' THEN
         EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
       ELSE
         EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"';
