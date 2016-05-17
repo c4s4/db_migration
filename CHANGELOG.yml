@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.0.1
+  date:    2016-05-??
+  summary: Bug correction
+  fixed:
+  - "Fixed script generation feature."
+
 - version: 2.0.0
   date:    2016-05-03
   summary: Added Oracle support
