@@ -1,5 +1,5 @@
 build/
 venv/
 .idea/
+.ropeproject/
 **/*.pyc
-

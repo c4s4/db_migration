@@ -2,8 +2,6 @@
 
 # platform list
 PLATFORMS = ['itg', 'prp', 'prod']
-# default platform
-DEFAULT_PLATFORM = PLATFORMS[0]
 # platform where init is forbidden
 CRITICAL_PLATFORMS = PLATFORMS[1:]
 # charset of the database

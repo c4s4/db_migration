@@ -9,6 +9,13 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.0.1
+  date:    2016-05-17
+  summary: Bug correction
+  fixed:
+  - "Fixed script generation feature."
+  - "Updated MysqlCommando and SqlplusCommando with latest releases."
+
 - version: 2.0.0
   date:    2016-05-03
   summary: Added Oracle support
