@@ -21,6 +21,7 @@ class MysqlCommando(object):
         (r'-?\d+', int),
         (r'-?\d*\.?\d*([Ee][+-]?\d+)?', float),
         (r'\d{4}-\d\d-\d\d \d\d:\d\d:\d\d', lambda d: datetime.datetime.strptime(d, MysqlCommando.ISO_FORMAT)),
+        (r'NULL', lambda d: None),
     )
     QUERY_LAST_INSERT_ID = """
     ;SELECT last_insert_id() as last_insert_id;
@@ -49,7 +50,7 @@ class MysqlCommando(object):
             else:
                 self.encoding = None
         else:
-            raise Exception('Missing database configuration')
+            raise MysqlException('Missing database configuration')
         self.cast = cast
 
     def run_query(self, query, parameters=None, cast=None,
@@ -131,7 +132,7 @@ class MysqlCommando(object):
             process = subprocess.Popen(command, stdout=subprocess.PIPE,  stderr=subprocess.PIPE)
         output, errput = process.communicate()
         if process.returncode != 0:
-            raise Exception(errput.strip())
+            raise MysqlException(errput.strip())
         return output
 
     @staticmethod
@@ -156,12 +157,27 @@ class MysqlCommando(object):
             return "'%s'" % MysqlCommando._escape_string(parameter)
         elif isinstance(parameter, datetime.datetime):
             return "'%s'" % parameter.strftime(MysqlCommando.ISO_FORMAT)
+        elif isinstance(parameter, list):
+            return "(%s)" % ', '.join([MysqlCommando._format_parameter(e) for e in parameter])
+        elif parameter is None:
+            return "NULL"
         else:
-            raise Exception("Type '%s' is not managed as a query parameter" % parameter.__class__.__name__)
+            raise MysqlException("Type '%s' is not managed as a query parameter" % parameter.__class__.__name__)
 
     @staticmethod
     def _escape_string(string):
         return string.replace("'", "''")
+
+
+# pylint: disable=W0231
+class MysqlException(Exception):
+
+    def __init__(self, message, query=None):
+        self.message = message
+        self.query = query
+
+    def __str__(self):
+        return self.message#pylint: disable=E1103
 
 
 class SqlplusCommando(object):
@@ -185,44 +201,36 @@ class SqlplusCommando(object):
             self.username = configuration['username']
             self.password = configuration['password']
         else:
-            raise Exception('Missing database configuration')
+            raise SqlplusException('Missing database configuration')
         self.cast = cast
 
     def run_query(self, query, parameters={}, cast=True,
                   check_unknown_command=True):
-        command = self._process_query(query=query, parameters=parameters)
-        return self._run_command(command, cast=cast,
-                                 check_unknown_command=check_unknown_command)
-
-    def run_script(self, script, cast=True, check_unknown_command=True):
-        if not os.path.isfile(script):
-            raise Exception("Script '%s' was not found" % script)
-        with open(script) as stream:
-            source = stream.read()
-        return self.run_query(query=source, cast=cast, check_unknown_command=check_unknown_command)
-
-    def _process_query(self, query, parameters={}):
         if parameters:
             query = self._process_parameters(query, parameters)
-        return self.CATCH_ERRORS + query
-
-    def _run_command(self, command, cast, check_unknown_command):
-        connection_url = self._get_connection_url()
+        query = self.CATCH_ERRORS + query
         session = subprocess.Popen(['sqlplus', '-S', '-L', '-M', 'HTML ON',
-                                    connection_url],
+                                    self._get_connection_url()],
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        session.stdin.write(command)
+        session.stdin.write(query)
         output, _ = session.communicate(self.EXIT_COMMAND)
         code = session.returncode
         if code != 0:
-            raise Exception(OracleErrorParser.parse(output))
+            raise SqlplusException(SqlplusErrorParser.parse(output), query)
         else:
             if output:
-                result = OracleResponseParser.parse(output, cast=cast,
-                                                    check_unknown_command=check_unknown_command)
+                result = SqlplusResultParser.parse(output, cast=cast,
+                                                  check_unknown_command=check_unknown_command)
                 return result
+
+    def run_script(self, script, cast=True, check_unknown_command=True):
+        if not os.path.isfile(script):
+            raise SqlplusException("Script '%s' was not found" % script)
+        with open(script) as stream:
+            source = stream.read()
+        return self.run_query(query=source, cast=cast, check_unknown_command=check_unknown_command)
 
     def _get_connection_url(self):
         return "%s/%s@%s/%s" % \
@@ -258,15 +266,15 @@ class SqlplusCommando(object):
         elif parameter is None:
             return "NULL"
         else:
-            raise Exception("Type '%s' is not managed as a query parameter" %
-                            parameter.__class__.__name__)
+            raise SqlplusException("Type '%s' is not managed as a query parameter" %
+                                   parameter.__class__.__name__)
 
     @staticmethod
     def _escape_string(string):
         return string.replace("'", "''")
 
 
-class OracleResponseParser(HTMLParser.HTMLParser):
+class SqlplusResultParser(HTMLParser.HTMLParser):
 
     DATE_FORMAT = '%d/%m/%y %H:%M:%S'
     UNKNOWN_COMMAND = 'SP2-0734: unknown command'
@@ -275,7 +283,7 @@ class OracleResponseParser(HTMLParser.HTMLParser):
         (r'-?\d*,?\d*([Ee][+-]?\d+)?', lambda f: float(f.replace(',', '.'))),
         (r'\d\d/\d\d/\d\d \d\d:\d\d:\d\d,\d*',
          lambda d: datetime.datetime.strptime(d[:17],
-                                              OracleResponseParser.DATE_FORMAT)),
+                                              SqlplusResultParser.DATE_FORMAT)),
         (r'NULL', lambda d: None),
     )
 
@@ -291,9 +299,11 @@ class OracleResponseParser(HTMLParser.HTMLParser):
 
     @staticmethod
     def parse(source, cast, check_unknown_command):
-        if OracleResponseParser.UNKNOWN_COMMAND in source and check_unknown_command:
-            raise Exception(OracleErrorParser.parse(source))
-        parser = OracleResponseParser(cast)
+        if not source.strip():
+            return ()
+        if SqlplusResultParser.UNKNOWN_COMMAND in source and check_unknown_command:
+            raise SqlplusException(SqlplusErrorParser.parse(source))
+        parser = SqlplusResultParser(cast)
         parser.feed(source)
         return tuple(parser.result)
 
@@ -330,13 +340,13 @@ class OracleResponseParser(HTMLParser.HTMLParser):
 
     @staticmethod
     def _cast(value):
-        for regexp, function in OracleResponseParser.CASTS:
+        for regexp, function in SqlplusResultParser.CASTS:
             if re.match("^%s$" % regexp, value):
                 return function(value)
         return value
 
 
-class OracleErrorParser(HTMLParser.HTMLParser):
+class SqlplusErrorParser(HTMLParser.HTMLParser):
 
     UNKNOWN_COMMAND = 'SP2-0734: unknown command'
 
@@ -347,7 +357,7 @@ class OracleErrorParser(HTMLParser.HTMLParser):
 
     @staticmethod
     def parse(source):
-        parser = OracleErrorParser()
+        parser = SqlplusErrorParser()
         parser.feed(source)
         return '\n'.join([l for l in parser.message.split('\n') if l.strip() != ''])
 
@@ -362,6 +372,17 @@ class OracleErrorParser(HTMLParser.HTMLParser):
     def handle_data(self, data):
         if self.active:
             self.message += data
+
+
+# pylint: disable=W0231
+class SqlplusException(Exception):
+
+    def __init__(self, message, query=None):
+        self.message = message
+        self.query = query
+
+    def __str__(self):
+        return self.message
 
 
 class MysqlMetaManager(object):
