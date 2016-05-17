@@ -112,8 +112,8 @@ class TestDBMigration(unittest.TestCase):
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
             {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': 'NULL',      'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': 'NULL',      'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'cat', 'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat', 'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -158,9 +158,9 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': 'NULL', 'age': 6,  'id': 1, 'name': 'Milou'},
-            {'species': 'dog', 'tatoo': 'NULL', 'age': 11, 'id': 2, 'name': 'Médor'},
-            {'species': 'cat', 'tatoo': 'NULL', 'age': 10, 'id': 3, 'name': 'Félix'},
+            {'species': 'dog', 'tatoo': None, 'age': 6,  'id': 1, 'name': 'Milou'},
+            {'species': 'dog', 'tatoo': None, 'age': 11, 'id': 2, 'name': 'Médor'},
+            {'species': 'cat', 'tatoo': None, 'age': 10, 'id': 3, 'name': 'Félix'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -206,8 +206,8 @@ class TestDBMigration(unittest.TestCase):
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
             {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': 'NULL',      'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': 'NULL',      'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'cat', 'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat', 'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
         )
         self.assert_data(EXPECTED_DATA)
 
