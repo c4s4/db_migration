@@ -847,13 +847,10 @@ version     La version a installer (la version de l'archive par defaut)."""
 
     @staticmethod
     def split_version(version):
-        if re.match('\\d+(\\.\\d+(\\.\\d+)?)?', version):
-            version_array = [int(i) for i in version.split('.')]
-            while len(version_array) < 3:
-                version_array.append(0)
-            return version_array
-        elif version == 'init':
+        if version == 'init':
             return None
+        elif re.match('\\d+(\\.\\d+)*', version):
+            return [int(i) for i in version.split('.')]
         else:
             raise AppException("Unknown version '%s'" % version)
 
@@ -901,12 +898,13 @@ version     La version a installer (la version de l'archive par defaut)."""
             if script_platform == 'all' or script_platform == self.platform:
                 if script_version:
                     if self.from_version == 'init' or script_version > self.from_version:
-                        if script_version <= self.version:
+                        if script_version <= self.version_array:
                             version_script_directory_list.append(script_name)
                 else:
                     if self.from_version == 'init':
                         init_script_directory_list.append(script_name)
-        return sorted(init_script_directory_list) + sorted(version_script_directory_list, key=self.script_file_sorter)
+        return sorted(init_script_directory_list) + \
+               sorted(version_script_directory_list, key=self.script_file_sorter)
 
     def filter_scripts(self):
         scripts_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
