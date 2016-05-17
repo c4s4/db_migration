@@ -9,7 +9,6 @@ import glob
 import getopt
 import getpass
 import datetime
-import tempfile
 import subprocess
 import HTMLParser
 
@@ -875,6 +874,22 @@ version     La version a installer (la version de l'archive par defaut)."""
         if result != 0:
             raise AppException("Error running command '%s'" % command)
 
+    @staticmethod
+    def _script_platform_version_name(script):
+        platform = os.path.basename(script)
+        if '.' in platform:
+            platform = platform[:platform.index('.')]
+        if '-' in platform:
+            platform = platform[:platform.index('-')]
+        dirname = os.path.dirname(script)
+        if os.path.sep in dirname:
+            v = dirname[dirname.rindex(os.path.sep)+1:]
+        else:
+            v = dirname
+        version = DBMigration.split_version(v)
+        name = v + os.path.sep + os.path.basename(script)
+        return platform, version, name
+
     def select_scripts(self):
         if self.from_version != 'init':
             self.from_version = self.split_version(self.from_version)
@@ -882,10 +897,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         version_script_directory_list = []
         init_script_directory_list = []
         for script in scripts_list:
-            dir_name = os.path.dirname(script)
-            script_name = dir_name[dir_name.rindex('/')+1:] + os.path.sep + os.path.basename(script)
-            script_version = self.split_version(dir_name[dir_name.rindex('/')+1:])
-            script_platform = os.path.basename(script)[:min(script.index('-'), script.index('.'))]
+            script_platform, script_version, script_name = self._script_platform_version_name(script)
             if script_platform == 'all' or script_platform == self.platform:
                 if script_version:
                     if self.from_version == 'init' or script_version > self.from_version:
@@ -901,11 +913,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         version_script_directory_list = []
         init_script_directory_list = []
         for script in scripts_list:
-            dir_name = os.path.dirname(script)
-            script_name = dir_name[dir_name.rindex('/')+1:] + os.path.sep + os.path.basename(script)
-            script_version = self.split_version(dir_name[dir_name.rindex('/')+1:])
-            base = os.path.basename(script)
-            script_platform = base[:min(base.index('-'), base.index('.'))]
+            script_platform, script_version, script_name = self._script_platform_version_name(script)
             if script_platform == 'all' or script_platform == self.platform:
                 if script_version:
                     if self.all_scripts or self.version_array >= script_version:
@@ -918,13 +926,12 @@ version     La version a installer (la version de l'archive par defaut)."""
                sorted(version_script_directory_list, key=self.script_file_sorter)
 
     def script_file_sorter(self, filename):
-        base = os.path.basename(filename)
-        platform = base[:min(base.index('-'), base.index('.'))]
+        platform, version, name = self._script_platform_version_name(filename)
+        base = os.path.basename(name)
         if platform == 'all':
             platform_index = 0
         else:
             platform_index = 1
-        version = [int(c) for c in self.split_version(filename[:filename.index('/')])]
         return (version,  platform_index, base)
 
 
