@@ -816,6 +816,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             print "-- Script '%s'" % script
             print open(os.path.join(self.sql_dir, script)).read().strip()
             print
+        print self.meta_manager.script_footer(self.db_config)
 
     def migrate_dry(self):
         print "Testing database connection...",
