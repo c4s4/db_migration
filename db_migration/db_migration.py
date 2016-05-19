@@ -469,6 +469,9 @@ class MysqlMetaManager(object):
     def script_header(self, db_config):
         return "USE `%(database)s`;" % db_config
 
+    def script_footer(self, db_config): # pylint: disable=W0613
+        return "COMMIT;"
+
 
 class SqlplusMetaManager(object):
 
@@ -605,7 +608,10 @@ SELECT 42 FROM DUAL;
         return int(self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['INSTALLED']) > 0
 
     def script_header(self, db_config): # pylint: disable=W0613
-        return ''
+        return "WHENEVER SQLERROR EXIT SQL.SQLCODE;\nWHENEVER OSERROR EXIT 9;"
+
+    def script_footer(self, db_config): # pylint: disable=W0613
+        return "COMMIT;"
 
 
 class AppException(Exception):
@@ -810,6 +816,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             print "-- Script '%s'" % script
             print open(os.path.join(self.sql_dir, script)).read().strip()
             print
+        print self.meta_manager.script_footer(self.db_config)
 
     def migrate_dry(self):
         print "Testing database connection...",
