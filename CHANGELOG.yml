@@ -15,7 +15,7 @@
   added:
   - "Added WHENEVER statements in generated Oracle scripts so that they stop on
      error."
-  - "Added COMMIT statement at the end of Oracle generated scripts."
+  - "Added COMMIT statement at the end of Oracle and MySQL generated scripts."
 
 - version: 2.0.2
   date:    2016-05-19
