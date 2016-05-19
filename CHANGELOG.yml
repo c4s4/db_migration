@@ -9,6 +9,13 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.1.0
+  date:    2016-05-19
+  summary: Gestion des erreurs dans les scripts Oracle générés
+  added:
+  - "Added WHENEVER statements in generated Oracle scripts so that they stop on
+     error."
+
 - version: 2.0.2
   date:    2016-05-19
   summary: Bug correction

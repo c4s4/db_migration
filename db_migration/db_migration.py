@@ -469,6 +469,9 @@ class MysqlMetaManager(object):
     def script_header(self, db_config):
         return "USE `%(database)s`;" % db_config
 
+    def script_footer(self, db_config): # pylint: disable=W0613
+        return ""
+
 
 class SqlplusMetaManager(object):
 
@@ -605,7 +608,10 @@ SELECT 42 FROM DUAL;
         return int(self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['INSTALLED']) > 0
 
     def script_header(self, db_config): # pylint: disable=W0613
-        return ''
+        return "WHENEVER SQLERROR EXIT SQL.SQLCODE;\nWHENEVER OSERROR EXIT 9;\n"
+
+    def script_footer(self, db_config): # pylint: disable=W0613
+        return "commit;\n"
 
 
 class AppException(Exception):
