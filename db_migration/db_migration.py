@@ -466,6 +466,9 @@ class MysqlMetaManager(object):
         }
         return int(self.mysql.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['installed']) > 0
 
+    def script_header(self, db_config):
+        return "USE `%(database)s`;" % db_config
+
 
 class SqlplusMetaManager(object):
 
@@ -600,6 +603,9 @@ SELECT 42 FROM DUAL;
             'script': script,
         }
         return int(self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['INSTALLED']) > 0
+
+    def script_header(self, db_config): # pylint: disable=W0613
+        return ''
 
 
 class AppException(Exception):
@@ -798,7 +804,7 @@ version     La version a installer (la version de l'archive par defaut)."""
     def print_migration_script(self):
         print "-- Migration base '%s' on platform '%s'" % (self.db_config['database'], self.platform)
         print "-- From version '%s' to '%s'" % (self.from_version, self.version)
-        print "USE `%(database)s`;" % self.db_config
+        print self.meta_manager.script_header(self.db_config)
         print
         for script in self.select_scripts():
             print "-- Script '%s'" % script
