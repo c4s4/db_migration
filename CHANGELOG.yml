@@ -10,7 +10,7 @@
 #   - "Description about what was removed."
 
 - version: 2.2.0
-  date:    2016-05-23
+  date:    2016-05-26
   summary: Added warning detection on Oracle scripts
   added:
   - "A warning in an Oracle script will interrupt database migration."
