@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.2.1
+  date:    2016-06-02
+  summary: Fixed deprecation warning
+  fixed:
+  - "Fixed deprecation warning regarding BaseException.message."
+
 - version: 2.2.0
   date:    2016-05-26
   summary: Added warning detection on Oracle scripts
