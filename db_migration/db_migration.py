@@ -668,7 +668,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         try:
             DBMigration.parse_command_line(sys.argv[1:]).run()
         except AppException, e:
-            print e.message
+            print str(e)
             sys.exit(1)
 
     @staticmethod
