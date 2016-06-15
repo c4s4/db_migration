@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.3.0
+  date:    2016-06-15
+  summary: Improved Oracle error parsing
+  added:
+  - "Improved Oracle error parsing based on regular expressions."
+
 - version: 2.2.1
   date:    2016-06-02
   summary: Fixed deprecation warning
