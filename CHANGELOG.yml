@@ -9,6 +9,14 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.4.0
+  date:    2016-06-16
+  summary: Script is not responsible for database cleaning anymore
+  added:
+  - "Script is not responsible for Oracle database cleaning anymore. This must
+     be done by a script, but take care not to remove INSTALL_, SCRIPTS_ and
+     INSTALL_SEQUENCE objects."
+
 - version: 2.3.0
   date:    2016-06-15
   summary: Improved Oracle error parsing
