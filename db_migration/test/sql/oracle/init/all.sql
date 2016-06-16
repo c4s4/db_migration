@@ -4,6 +4,10 @@ BEGIN
                   FROM   user_objects
                   WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
     BEGIN
+      IF cur_rec.object_name = 'INSTALL_' OR cur_rec.object_name = 'SCRIPTS_' OR
+         cur_rec.object_name = 'INSTALL_SEQUENCE' THEN
+        CONTINUE;
+      end IF;
       IF cur_rec.object_type = 'TABLE' THEN
         EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
       ELSE
@@ -16,6 +20,7 @@ BEGIN
   END LOOP;
 END;
 /
+-- create table PET
 CREATE TABLE PET (
   ID NUMBER(10) NOT NULL,
   NAME VARCHAR(20) NOT NULL,

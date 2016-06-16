@@ -472,25 +472,6 @@ class MysqlMetaManager(object):
 
 class SqlplusMetaManager(object):
 
-    SQL_CLEAR_DATABASE = """
-BEGIN
-  FOR cur_rec IN (SELECT object_name, object_type
-                  FROM   user_objects
-                  WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
-    BEGIN
-      IF cur_rec.object_type = 'TABLE' THEN
-        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
-      ELSE
-        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"';
-      END IF;
-    EXCEPTION
-      WHEN OTHERS THEN
-        DBMS_OUTPUT.put_line('FAILED: DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"');
-    END;
-  END LOOP;
-END;
-/
-"""
     SQL_TABLE_EXIST = """
 SELECT count(*) AS EXIST FROM USER_TABLES
 WHERE TABLE_NAME = %(table)s;
@@ -562,7 +543,6 @@ SELECT 42 FROM DUAL;
 
     def meta_create(self, init):
         if init:
-            self.sqlplus.run_query(query=self.SQL_CLEAR_DATABASE)
             if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
                 self.sqlplus.run_query(query=self.SQL_DROP_META_SCRIPTS)
             if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
@@ -851,11 +831,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                         print "ERROR"
                     success = False
                     install_success = False
-                    if e.message:
-                        message = e.message
-                    else:
-                        message = str(e)
-                    errors.append((script, message))
+                    errors.append((script, str(e)))
                     break
                 finally:
                     self.meta_manager.script_run(script, success, message)
