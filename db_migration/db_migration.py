@@ -748,8 +748,8 @@ version     La version a installer (la version de l'archive par defaut)."""
         # set database configuration in db_config
         self.db_config = self.config.CONFIGURATION[self.platform]
         if self.local:
-            if self.db_config['DATABASE'] in self.LOCAL_DB_CONFIG:
-                self.db_config.update(self.LOCAL_DB_CONFIG[self.db_config['DATABASE']])
+            if self.config.DATABASE in self.LOCAL_DB_CONFIG:
+                self.db_config.update(self.LOCAL_DB_CONFIG[self.config.DATABASE])
             else:
                 raise Exception("No local configuration set for database '%s'" % self.db_config['DATABASE'])
         if not self.db_config['password']:
