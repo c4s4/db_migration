@@ -610,10 +610,19 @@ class DBMigration(object):
     VERSION_FILE = 'VERSION'
     SNAPSHOT_POSTFIX = '-SNAPSHOT'
     SCRIPTS_GLOB = '*/*.sql'
+    VERSION_INIT = 'init'
     LOCAL_DB_CONFIG = {
-        'hostname': 'localhost',
-        'username': 'test',
-        'password': 'test',
+        'mysql': {
+            'hostname': 'localhost',
+            'username': 'test',
+            'password': 'test',
+        },
+        'oracle': {
+            'hostname': 'localhost:1521',
+            'database': 'xe',
+            'username': 'test',
+            'password': 'test',
+        }
     }
     HELP = """python db_migration.py [-h] [-d] [-i] [-a] [-l] [-u] [-s sql_dir] [-c config]
                        [-p fichier] [-m from] platform [version]
@@ -739,7 +748,10 @@ version     La version a installer (la version de l'archive par defaut)."""
         # set database configuration in db_config
         self.db_config = self.config.CONFIGURATION[self.platform]
         if self.local:
-            self.db_config.update(self.LOCAL_DB_CONFIG)
+            if self.db_config['DATABASE'] in self.LOCAL_DB_CONFIG:
+                self.db_config.update(self.LOCAL_DB_CONFIG[self.db_config['DATABASE']])
+            else:
+                raise Exception("No local configuration set for database '%s'" % self.db_config['DATABASE'])
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
         if self.config.DATABASE == 'mysql':
@@ -854,7 +866,7 @@ version     La version a installer (la version de l'archive par defaut)."""
 
     @staticmethod
     def split_version(version):
-        if version == 'init':
+        if version == DBMigration.VERSION_INIT:
             return None
         elif re.match('\\d+(\\.\\d+)*', version):
             return [int(i) for i in version.split('.')]
@@ -895,7 +907,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         return platform, version, name
 
     def select_scripts(self):
-        if self.from_version != 'init':
+        if self.from_version != self.VERSION_INIT:
             self.from_version = self.split_version(self.from_version)
         scripts_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
         version_script_directory_list = []
@@ -904,11 +916,11 @@ version     La version a installer (la version de l'archive par defaut)."""
             script_platform, script_version, script_name = self._script_platform_version_name(script)
             if script_platform == 'all' or script_platform == self.platform:
                 if script_version:
-                    if self.from_version == 'init' or script_version > self.from_version:
+                    if self.from_version == self.VERSION_INIT or script_version > self.from_version:
                         if script_version <= self.version_array:
                             version_script_directory_list.append(script_name)
                 else:
-                    if self.from_version == 'init':
+                    if self.from_version == self.VERSION_INIT:
                         init_script_directory_list.append(script_name)
         return sorted(init_script_directory_list) + \
                sorted(version_script_directory_list, key=self.script_file_sorter)
