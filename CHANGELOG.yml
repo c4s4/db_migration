@@ -9,6 +9,13 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.5.0
+  date:    2016-06-??
+  summary: ???
+  added:
+  - "A version directory 'next' is accepted and its scripts passed when '-a'
+     option is set."
+
 - version: 2.4.0
   date:    2016-06-16
   summary: Script is not responsible for database cleaning anymore

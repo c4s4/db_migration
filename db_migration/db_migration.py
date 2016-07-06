@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import glob
+import math
 import getopt
 import getpass
 import datetime
@@ -607,6 +608,11 @@ class Config(object):
 
 class Script(object):
 
+    INFINITE = math.inf if hasattr(math, 'inf') else float('inf')
+    VERSION_INIT = []
+    VERSION_NEXT = [INFINITE]
+    PLATFORM_ALL = 'all'
+
     def __init__(self, path):
         self.path = path
         self.platform = os.path.basename(path)
@@ -623,10 +629,8 @@ class Script(object):
         self.name = v + os.path.sep + os.path.basename(path)
 
     def sort_key(self):
-        version_key = self.version if self.version else [-1]
-        platform_key = 0 if self.platform == 'all' else 1
-        name_key = os.path.basename(self.name)
-        return version_key, platform_key, name_key
+        platform_key = 0 if self.platform == self.PLATFORM_ALL else 1
+        return self.version, platform_key, os.path.basename(self.name)
 
     def __str__(self):
         return self.name
@@ -634,7 +638,9 @@ class Script(object):
     @staticmethod
     def split_version(version):
         if version == 'init':
-            return None
+            return Script.VERSION_INIT
+        elif version == 'next':
+            return Script.VERSION_NEXT
         elif re.match('\\d+(\\.\\d+)*', version):
             return [int(i) for i in version.split('.')]
         else:
@@ -644,7 +650,6 @@ class Script(object):
 class DBMigration(object):
 
     VERSION_FILE = 'VERSION'
-    VERSION_INIT = 'init'
     SNAPSHOT_POSTFIX = '-SNAPSHOT'
     SCRIPTS_GLOB = '*/*.sql'
     LOCAL_DB_CONFIG = {
@@ -913,12 +918,14 @@ version     La version a installer (la version de l'archive par defaut)."""
         return [Script(f) for f in file_list]
 
     def filter_by_platform(self, scripts):
-        return [s for s in scripts if s.platform == 'all' or s.platform == self.platform]
+        return [s for s in scripts if
+                s.platform == Script.PLATFORM_ALL or s.platform == self.platform]
 
     def filter_by_version(self, scripts):
         return [s for s in scripts if
-                (s.version and (self.all_scripts or self.version_array >= s.version)) or
-                (not s.version and self.init)]
+                (isinstance(s.version, list) and (self.all_scripts or self.version_array >= s.version)) or
+                (s.version == Script.VERSION_INIT and self.init) or
+                (s.version == Script.VERSION_NEXT and self.all_scripts)]
 
     def filter_passed(self, scripts):
         return [s for s in scripts if
@@ -941,7 +948,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                 version = version[:-len(DBMigration.SNAPSHOT_POSTFIX)]
             return version
         else:
-            raise AppException("Version file not found, please set version on command line")
+            raise AppException("Please set version on command line")
 
     @staticmethod
     def execute(command):
