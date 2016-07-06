@@ -1,0 +1,1 @@
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Totor', 6, 'hedgehog');
