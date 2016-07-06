@@ -6,7 +6,9 @@ import os
 import re
 import sys
 import glob
+import math
 import getopt
+import codecs
 import getpass
 import datetime
 import subprocess
@@ -189,7 +191,7 @@ class SqlplusCommando(object):
     def __init__(self, configuration=None,
                  hostname=None, database=None,
                  username=None, password=None,
-                 cast=True):
+                 encoding=None, cast=True):
         if hostname and database and username and password:
             self.hostname = hostname
             self.database = database
@@ -202,6 +204,7 @@ class SqlplusCommando(object):
             self.password = configuration['password']
         else:
             raise SqlplusException('Missing database configuration')
+        self.encoding = encoding
         self.cast = cast
 
     def run_query(self, query, parameters={}, cast=True, check_errors=True):
@@ -213,7 +216,10 @@ class SqlplusCommando(object):
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        session.stdin.write(query)
+        if self.encoding:
+            session.stdin.write(query.encode(self.encoding))
+        else:
+            session.stdin.write(query)
         output, _ = session.communicate(self.EXIT_COMMAND)
         code = session.returncode
         if code != 0:
@@ -226,8 +232,14 @@ class SqlplusCommando(object):
     def run_script(self, script, cast=True, check_errors=True):
         if not os.path.isfile(script):
             raise SqlplusException("Script '%s' was not found" % script)
-        with open(script) as stream:
-            source = stream.read()
+        if self.encoding:
+            # read enforcing encoding
+            with codecs.open(script, mode='rb', encoding=self.encoding, errors='strict') as stream:
+                source = stream.read()
+        else:
+            # read without encoding
+            with open(script) as stream:
+                source = stream.read()
         return self.run_query(query=source, cast=cast, check_errors=check_errors)
 
     def _get_connection_url(self):
@@ -605,15 +617,64 @@ class Config(object):
         return repr(self.__dict__)
 
 
+class Script(object):
+
+    INFINITE = math.inf if hasattr(math, 'inf') else float('inf')
+    VERSION_INIT = []
+    VERSION_NEXT = [INFINITE]
+    PLATFORM_ALL = 'all'
+
+    def __init__(self, path):
+        self.path = path
+        self.platform = os.path.basename(path)
+        if '.' in self.platform:
+            self.platform = self.platform[:self.platform.index('.')]
+        if '-' in self.platform:
+            self.platform = self.platform[:self.platform.index('-')]
+        dirname = os.path.dirname(path)
+        if os.path.sep in dirname:
+            v = dirname[dirname.rindex(os.path.sep)+1:]
+        else:
+            v = dirname
+        self.version = Script.split_version(v)
+        self.name = v + os.path.sep + os.path.basename(path)
+
+    def sort_key(self):
+        platform_key = 0 if self.platform == self.PLATFORM_ALL else 1
+        return self.version, platform_key, os.path.basename(self.name)
+
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def split_version(version):
+        if version == 'init':
+            return Script.VERSION_INIT
+        elif version == 'next':
+            return Script.VERSION_NEXT
+        elif re.match('\\d+(\\.\\d+)*', version):
+            return [int(i) for i in version.split('.')]
+        else:
+            raise AppException("Unknown version '%s'" % version)
+
+
 class DBMigration(object):
 
     VERSION_FILE = 'VERSION'
     SNAPSHOT_POSTFIX = '-SNAPSHOT'
     SCRIPTS_GLOB = '*/*.sql'
     LOCAL_DB_CONFIG = {
-        'hostname': 'localhost',
-        'username': 'test',
-        'password': 'test',
+        'mysql': {
+            'hostname': 'localhost',
+            'username': 'test',
+            'password': 'test',
+        },
+        'oracle': {
+            'hostname': 'localhost:1521',
+            'database': 'xe',
+            'username': 'test',
+            'password': 'test',
+        }
     }
     HELP = """python db_migration.py [-h] [-d] [-i] [-a] [-l] [-u] [-s sql_dir] [-c config]
                        [-p fichier] [-m from] platform [version]
@@ -739,14 +800,17 @@ version     La version a installer (la version de l'archive par defaut)."""
         # set database configuration in db_config
         self.db_config = self.config.CONFIGURATION[self.platform]
         if self.local:
-            self.db_config.update(self.LOCAL_DB_CONFIG)
+            if self.config.DATABASE in self.LOCAL_DB_CONFIG:
+                self.db_config.update(self.LOCAL_DB_CONFIG[self.config.DATABASE])
+            else:
+                raise Exception("No local configuration set for database '%s'" % self.db_config['DATABASE'])
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
         if self.config.DATABASE == 'mysql':
-            mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
+            mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.ENCODING)
             self.meta_manager = MysqlMetaManager(mysql)
         elif self.config.DATABASE == 'oracle':
-            sqlplus = SqlplusCommando(configuration=self.db_config)
+            sqlplus = SqlplusCommando(configuration=self.db_config, encoding=self.config.ENCODING)
             self.meta_manager = SqlplusMetaManager(sqlplus)
         else:
             raise AppException("DATABASE must be 'mysql' or 'oracle'")
@@ -766,7 +830,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.version = 'all'
             self.version_array = 0, 0, 0
         else:
-            self.version_array = self.split_version(self.version)
+            self.version_array = Script.split_version(self.version)
 
     ###########################################################################
     #                              RUNTIME                                    #
@@ -789,9 +853,9 @@ version     La version a installer (la version de l'archive par defaut)."""
         print "-- From version '%s' to '%s'" % (self.from_version, self.version)
         print self.meta_manager.script_header(self.db_config)
         print
-        for script in self.select_scripts():
+        for script in self.select_scripts(passed=True):
             print "-- Script '%s'" % script
-            print open(os.path.join(self.sql_dir, script)).read().strip()
+            print open(os.path.join(self.sql_dir, script.name)).read().strip()
             print
         print self.meta_manager.script_footer(self.db_config)
 
@@ -801,7 +865,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         self.meta_manager.database_test()
         print "OK"
         print "SQL scripts to run:"
-        for script in self.filter_scripts():
+        for script in self.select_scripts():
             print "- %s" % script
 
     def migrate(self):
@@ -815,7 +879,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         install_success = True
         errors = []
         try:
-            scripts = self.filter_scripts()
+            scripts = self.select_scripts()
             for script in scripts:
                 success = True
                 message = None
@@ -823,7 +887,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                     if not self.mute:
                         print "Running script '%s'... " % script,
                         sys.stdout.flush()
-                    self.meta_manager.run_script(os.path.join(self.sql_dir, script))
+                    self.meta_manager.run_script(os.path.join(self.sql_dir, script.name))
                     if not self.mute:
                         print "OK"
                 except Exception, e:
@@ -834,7 +898,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                     errors.append((script, str(e)))
                     break
                 finally:
-                    self.meta_manager.script_run(script, success, message)
+                    self.meta_manager.script_run(script.name, success, message)
         finally:
             self.meta_manager.install_done(install_success)
         if install_success:
@@ -849,17 +913,42 @@ version     La version a installer (la version de l'archive par defaut)."""
             raise AppException("ERROR")
 
     ###########################################################################
-    #                              UTILITY METHODS                            #
+    #                             SCRIPTS SELECTION                           #
     ###########################################################################
 
+    def select_scripts(self, passed=False):
+        scripts = self.get_scripts()
+        scripts = self.filter_by_platform(scripts)
+        scripts = self.filter_by_version(scripts)
+        if not passed:
+            scripts = self.filter_passed(scripts)
+        return self.sort_scripts(scripts)
+
+    def get_scripts(self):
+        file_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
+        return [Script(f) for f in file_list]
+
+    def filter_by_platform(self, scripts):
+        return [s for s in scripts if
+                s.platform == Script.PLATFORM_ALL or s.platform == self.platform]
+
+    def filter_by_version(self, scripts):
+        return [s for s in scripts if
+                (isinstance(s.version, list) and (self.all_scripts or self.version_array >= s.version)) or
+                (s.version == Script.VERSION_INIT and self.init) or
+                (s.version == Script.VERSION_NEXT and self.all_scripts)]
+
+    def filter_passed(self, scripts):
+        return [s for s in scripts if
+                not self.meta_manager.script_passed(s.name) or self.init]
+
     @staticmethod
-    def split_version(version):
-        if version == 'init':
-            return None
-        elif re.match('\\d+(\\.\\d+)*', version):
-            return [int(i) for i in version.split('.')]
-        else:
-            raise AppException("Unknown version '%s'" % version)
+    def sort_scripts(scripts):
+        return sorted(scripts, key=lambda s: s.sort_key())
+
+    ###########################################################################
+    #                              UTILITY METHODS                            #
+    ###########################################################################
 
     @staticmethod
     def get_version_from_file():
@@ -870,74 +959,13 @@ version     La version a installer (la version de l'archive par defaut)."""
                 version = version[:-len(DBMigration.SNAPSHOT_POSTFIX)]
             return version
         else:
-            raise AppException("Version file not found, please set version on command line")
+            raise AppException("Please set version on command line")
 
     @staticmethod
     def execute(command):
         result = os.system(command)
         if result != 0:
             raise AppException("Error running command '%s'" % command)
-
-    @staticmethod
-    def _script_platform_version_name(script):
-        platform = os.path.basename(script)
-        if '.' in platform:
-            platform = platform[:platform.index('.')]
-        if '-' in platform:
-            platform = platform[:platform.index('-')]
-        dirname = os.path.dirname(script)
-        if os.path.sep in dirname:
-            v = dirname[dirname.rindex(os.path.sep)+1:]
-        else:
-            v = dirname
-        version = DBMigration.split_version(v)
-        name = v + os.path.sep + os.path.basename(script)
-        return platform, version, name
-
-    def select_scripts(self):
-        if self.from_version != 'init':
-            self.from_version = self.split_version(self.from_version)
-        scripts_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
-        version_script_directory_list = []
-        init_script_directory_list = []
-        for script in scripts_list:
-            script_platform, script_version, script_name = self._script_platform_version_name(script)
-            if script_platform == 'all' or script_platform == self.platform:
-                if script_version:
-                    if self.from_version == 'init' or script_version > self.from_version:
-                        if script_version <= self.version_array:
-                            version_script_directory_list.append(script_name)
-                else:
-                    if self.from_version == 'init':
-                        init_script_directory_list.append(script_name)
-        return sorted(init_script_directory_list) + \
-               sorted(version_script_directory_list, key=self.script_file_sorter)
-
-    def filter_scripts(self):
-        scripts_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
-        version_script_directory_list = []
-        init_script_directory_list = []
-        for script in scripts_list:
-            script_platform, script_version, script_name = self._script_platform_version_name(script)
-            if script_platform == 'all' or script_platform == self.platform:
-                if script_version:
-                    if self.all_scripts or self.version_array >= script_version:
-                        if not self.meta_manager.script_passed(script_name) or self.init:
-                            version_script_directory_list.append(script_name)
-                else:
-                    if self.init:
-                        init_script_directory_list.append(script_name)
-        return sorted(init_script_directory_list) + \
-               sorted(version_script_directory_list, key=self.script_file_sorter)
-
-    def script_file_sorter(self, filename):
-        platform, version, name = self._script_platform_version_name(filename)
-        base = os.path.basename(name)
-        if platform == 'all':
-            platform_index = 0
-        else:
-            platform_index = 1
-        return (version,  platform_index, base)
 
 
 def main():

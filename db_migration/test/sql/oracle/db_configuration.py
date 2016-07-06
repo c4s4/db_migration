@@ -4,6 +4,8 @@
 PLATFORMS = ['itg', 'prp', 'prod']
 # platform where init is forbidden
 CRITICAL_PLATFORMS = PLATFORMS[1:]
+# encoding of the scripts
+ENCODING = 'UTF-8'
 # directory for SQL scripts (relative to this configuration file)
 SQL_DIR = "."
 
@@ -13,7 +15,7 @@ DATABASE = 'oracle'
 CONFIGURATION = {
     'itg': {
         'hostname': 'localhost:1521',
-        'database': 'xe',
+        'database': 'orcl',
         'password': 'test',
         'username': 'test',
     },

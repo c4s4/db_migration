@@ -239,8 +239,9 @@ class TestDBMigration(unittest.TestCase):
             self.assertTrue("Migration script generation is incompatible with options dry_run and local" in e.message)
 
     def test_split_version(self):
-        self.assertEqual([1, 2, 3, 4], db_migration.DBMigration.split_version('1.2.3.4'))
-        self.assertEqual(None, db_migration.DBMigration.split_version('init'))
+        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('1.2.3.4'))
+        self.assertEqual(db_migration.Script.VERSION_INIT, db_migration.Script.split_version('init'))
+        self.assertEqual(db_migration.Script.VERSION_NEXT, db_migration.Script.split_version('next'))
 
 
 if __name__ == '__main__':
