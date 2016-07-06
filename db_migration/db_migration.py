@@ -897,6 +897,38 @@ version     La version a installer (la version de l'archive par defaut)."""
             raise AppException("ERROR")
 
     ###########################################################################
+    #                             SCRIPTS SELECTION                           #
+    ###########################################################################
+
+    def select_scripts(self, passed=False):
+        scripts = self.get_scripts()
+        scripts = self.filter_by_platform(scripts)
+        scripts = self.filter_by_version(scripts)
+        if not passed:
+            scripts = self.filter_passed(scripts)
+        return self.sort_scripts(scripts)
+
+    def get_scripts(self):
+        file_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
+        return [Script(f) for f in file_list]
+
+    def filter_by_platform(self, scripts):
+        return [s for s in scripts if s.platform == 'all' or s.platform == self.platform]
+
+    def filter_by_version(self, scripts):
+        return [s for s in scripts if
+                (s.version and (self.all_scripts or self.version_array >= s.version)) or
+                (not s.version and self.init)]
+
+    def filter_passed(self, scripts):
+        return [s for s in scripts if
+                not self.meta_manager.script_passed(s.name) or self.init]
+
+    @staticmethod
+    def sort_scripts(scripts):
+        return sorted(scripts, key=lambda s: s.sort_key())
+
+    ###########################################################################
     #                              UTILITY METHODS                            #
     ###########################################################################
 
@@ -916,35 +948,6 @@ version     La version a installer (la version de l'archive par defaut)."""
         result = os.system(command)
         if result != 0:
             raise AppException("Error running command '%s'" % command)
-
-    def select_scripts(self, passed=False):
-        scripts = self.get_scripts()
-        scripts = self.filter_by_platform(scripts)
-        scripts = self.filter_by_version(scripts)
-        if not passed:
-            scripts = self.filter_passed(scripts)
-        return self.sort_scripts(scripts)
-
-    def get_scripts(self):
-        file_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
-        return [Script(f) for f in file_list]
-
-    def filter_by_platform(self, scripts):
-        return [s for s in scripts if s.platform == 'all' or s.platform == self.platform]
-
-    def filter_by_version(self, scripts):
-        return [s for s in scripts if
-                (s.version and (self.all_scripts or self.version_array >= s.version)) \
-                or
-                (not s.version and self.init)]
-
-    def filter_passed(self, scripts):
-        return [s for s in scripts if
-                not self.meta_manager.script_passed(s.name) or self.init]
-
-    @staticmethod
-    def sort_scripts(scripts):
-        return sorted(scripts, key=lambda s: s.sort_key())
 
 
 def main():
