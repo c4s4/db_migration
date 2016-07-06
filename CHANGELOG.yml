@@ -10,11 +10,13 @@
 #   - "Description about what was removed."
 
 - version: 2.5.0
-  date:    2016-06-??
-  summary: ???
+  date:    2016-07-06
+  summary: Added next directory version and encoding for Oracle
   added:
   - "A version directory 'next' is accepted and its scripts passed when '-a'
      option is set."
+  - "Added ENCODING configuration field in Oracle configuration, to enforce
+     given encoding while loading migration scripts."
 
 - version: 2.4.0
   date:    2016-06-16

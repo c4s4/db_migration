@@ -4,8 +4,8 @@
 PLATFORMS = ['itg', 'prp', 'prod']
 # platform where init is forbidden
 CRITICAL_PLATFORMS = PLATFORMS[1:]
-# charset of the database
-CHARSET = 'utf8'
+# encoding of the database
+ENCODING = 'utf8'
 # directory for SQL scripts (relative to this configuration file)
 SQL_DIR = "."
 

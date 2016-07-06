@@ -8,6 +8,7 @@ import sys
 import glob
 import math
 import getopt
+import codecs
 import getpass
 import datetime
 import subprocess
@@ -190,7 +191,7 @@ class SqlplusCommando(object):
     def __init__(self, configuration=None,
                  hostname=None, database=None,
                  username=None, password=None,
-                 cast=True):
+                 encoding=None, cast=True):
         if hostname and database and username and password:
             self.hostname = hostname
             self.database = database
@@ -203,6 +204,7 @@ class SqlplusCommando(object):
             self.password = configuration['password']
         else:
             raise SqlplusException('Missing database configuration')
+        self.encoding = encoding
         self.cast = cast
 
     def run_query(self, query, parameters={}, cast=True, check_errors=True):
@@ -214,7 +216,10 @@ class SqlplusCommando(object):
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        session.stdin.write(query)
+        if self.encoding:
+            session.stdin.write(query.encode(self.encoding))
+        else:
+            session.stdin.write(query)
         output, _ = session.communicate(self.EXIT_COMMAND)
         code = session.returncode
         if code != 0:
@@ -227,8 +232,14 @@ class SqlplusCommando(object):
     def run_script(self, script, cast=True, check_errors=True):
         if not os.path.isfile(script):
             raise SqlplusException("Script '%s' was not found" % script)
-        with open(script) as stream:
-            source = stream.read()
+        if self.encoding:
+            # read enforcing encoding
+            with codecs.open(script, mode='rb', encoding=self.encoding, errors='strict') as stream:
+                source = stream.read()
+        else:
+            # read without encoding
+            with open(script) as stream:
+                source = stream.read()
         return self.run_query(query=source, cast=cast, check_errors=check_errors)
 
     def _get_connection_url(self):
@@ -796,10 +807,10 @@ version     La version a installer (la version de l'archive par defaut)."""
         if not self.db_config['password']:
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
         if self.config.DATABASE == 'mysql':
-            mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.CHARSET)
+            mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.ENCODING)
             self.meta_manager = MysqlMetaManager(mysql)
         elif self.config.DATABASE == 'oracle':
-            sqlplus = SqlplusCommando(configuration=self.db_config)
+            sqlplus = SqlplusCommando(configuration=self.db_config, encoding=self.config.ENCODING)
             self.meta_manager = SqlplusMetaManager(sqlplus)
         else:
             raise AppException("DATABASE must be 'mysql' or 'oracle'")
