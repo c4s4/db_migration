@@ -941,11 +941,9 @@ version     La version a installer (la version de l'archive par defaut)."""
                 s.platform == Script.PLATFORM_ALL or s.platform == self.platform]
 
     def filter_by_version(self, scripts):
-        return [s for s in scripts if
-                (s.version != Script.VERSION_INIT and (self.all_scripts or self.version_array >= s.version)) or
-                (s.version == Script.VERSION_INIT and self.init) or
-                (s.version == Script.VERSION_NEXT and self.all_scripts) or
-                (self.from_version and self.from_version_array >= s.version)]
+        from_version = self.from_version_array if self.from_version else Script.VERSION_INIT
+        to_version = self.version_array if not self.all_scripts else Script.VERSION_NEXT
+        return [s for s in scripts if from_version <= s.version <= to_version]
 
     def filter_passed(self, scripts):
         return [s for s in scripts if
