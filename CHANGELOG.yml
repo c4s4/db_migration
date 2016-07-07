@@ -9,7 +9,7 @@
 #   removed:
 #   - "Description about what was removed."
 
-- version: 2.5.1
+- version: 2.5.2
   date:    2016-07-07
   summary: Bug Correction
   fixed:
