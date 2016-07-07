@@ -768,6 +768,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         self.db_config = None
         self.meta_manager = None
         self.version_array = None
+        self.from_version_array = None
         self.config = self.load_configuration(configuration)
         self.check_options()
         self.initialize()
@@ -831,6 +832,8 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.version_array = 0, 0, 0
         else:
             self.version_array = Script.split_version(self.version)
+        if self.from_version:
+            self.from_version_array = Script.split_version(self.from_version)
 
     ###########################################################################
     #                              RUNTIME                                    #
@@ -917,6 +920,11 @@ version     La version a installer (la version de l'archive par defaut)."""
     ###########################################################################
 
     def select_scripts(self, passed=False):
+        """
+        Select scripts between versions
+        :param passed: tells if we include scripts that were already passed
+        :return: the sorted list of scripts
+        """
         scripts = self.get_scripts()
         scripts = self.filter_by_platform(scripts)
         scripts = self.filter_by_version(scripts)
@@ -934,13 +942,14 @@ version     La version a installer (la version de l'archive par defaut)."""
 
     def filter_by_version(self, scripts):
         return [s for s in scripts if
-                (isinstance(s.version, list) and (self.all_scripts or self.version_array >= s.version)) or
+                (s.version != Script.VERSION_INIT and (self.all_scripts or self.version_array >= s.version)) or
                 (s.version == Script.VERSION_INIT and self.init) or
-                (s.version == Script.VERSION_NEXT and self.all_scripts)]
+                (s.version == Script.VERSION_NEXT and self.all_scripts) or
+                (self.from_version and self.from_version_array >= s.version)]
 
     def filter_passed(self, scripts):
         return [s for s in scripts if
-                not self.meta_manager.script_passed(s.name) or self.init]
+                self.init or not self.meta_manager.script_passed(s.name)]
 
     @staticmethod
     def sort_scripts(scripts):

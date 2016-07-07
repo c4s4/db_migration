@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.5.1
+  date:    2016-07-07
+  summary: Bug Correction
+  fixed:
+  - "Fixed migration script generation (init scripts were always included)."
+
 - version: 2.5.0
   date:    2016-07-06
   summary: Added next directory version and encoding for Oracle
