@@ -24,15 +24,9 @@ class TestDBMigration(unittest.TestCase):
     #                                UTILITIES                                #
     ###########################################################################
 
-    def dump_actual(self):
-        #pylint: disable=E1121
-        output_file = os.path.join(self.ROOT_DIR, 'build', 'actual.sql')
-        return db_migration.DBMigration.\
-            execute("mysqldump -d -h%s -u%s -p%s test pet > %s" %
-                    (self.DB_CONFIG['hostname'],
-                     self.DB_CONFIG['username'],
-                     self.DB_CONFIG['password'],
-                     output_file))
+    @staticmethod
+    def run_db_migration(options):
+        db_migration.DBMigration.parse_command_line(options).run()
 
     @staticmethod
     def strip_query(query):
@@ -58,9 +52,15 @@ class TestDBMigration(unittest.TestCase):
         finally:
             f.close()
 
-    @staticmethod
-    def run_db_migration(options):
-        db_migration.DBMigration.parse_command_line(options).run()
+    def dump_actual(self):
+        #pylint: disable=E1121
+        output_file = os.path.join(self.ROOT_DIR, 'build', 'actual.sql')
+        return db_migration.DBMigration.\
+            execute("mysqldump -d -h%s -u%s -p%s test pet > %s" %
+                    (self.DB_CONFIG['hostname'],
+                     self.DB_CONFIG['username'],
+                     self.DB_CONFIG['password'],
+                     output_file))
 
     def assert_schema(self, expected):
         self.dump_expected(expected)
@@ -92,6 +92,12 @@ class TestDBMigration(unittest.TestCase):
         self.MYSQL.run_query("DROP TABLE IF EXISTS test._scripts")
         self.MYSQL.run_query("DROP TABLE IF EXISTS test._install")
         self.MYSQL.run_query("DROP TABLE IF EXISTS test.pet")
+
+    def test_split_version(self):
+        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('1.2.3.4'))
+        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('01.02.03.04'))
+        self.assertEqual(db_migration.Script.VERSION_INIT, db_migration.Script.split_version('init'))
+        self.assertEqual(db_migration.Script.VERSION_NEXT, db_migration.Script.split_version('next'))
 
     def test_init_nominal(self):
         self.run_db_migration(['-ilu',
@@ -237,11 +243,6 @@ class TestDBMigration(unittest.TestCase):
             self.fail('Should have failed')
         except db_migration.AppException, e:
             self.assertTrue("Migration script generation is incompatible with options dry_run and local" in e.message)
-
-    def test_split_version(self):
-        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('1.2.3.4'))
-        self.assertEqual(db_migration.Script.VERSION_INIT, db_migration.Script.split_version('init'))
-        self.assertEqual(db_migration.Script.VERSION_NEXT, db_migration.Script.split_version('next'))
 
 
 if __name__ == '__main__':
