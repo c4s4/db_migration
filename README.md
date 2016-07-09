@@ -336,3 +336,10 @@ CREATE TABLE IF NOT EXISTS _scripts (
     REFERENCES _install(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Historique de passage des scripts';
 ```
+
+Todo
+----
+
+- Test with Python 2.6
+- Port to Python 3
+- Port on PostgreSQL
