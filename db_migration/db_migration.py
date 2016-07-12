@@ -827,7 +827,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                 self.sql_dir = os.path.abspath(os.path.dirname(__file__))
         # manage version
         if not self.version and not self.all_scripts:
-            raise Exception("You must pass version on command line")
+            raise AppException("You must pass version on command line")
         if not self.version:
             self.version = 'all'
             self.version_array = 0, 0, 0
