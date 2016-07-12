@@ -827,7 +827,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                 self.sql_dir = os.path.abspath(os.path.dirname(__file__))
         # manage version
         if not self.version and not self.all_scripts:
-            self.version = self.get_version_from_file()
+            raise Exception("You must pass version on command line")
         if not self.version:
             self.version = 'all'
             self.version_array = 0, 0, 0
@@ -921,11 +921,6 @@ version     La version a installer (la version de l'archive par defaut)."""
     ###########################################################################
 
     def select_scripts(self, passed=False):
-        """
-        Select scripts between versions
-        :param passed: tells if we include scripts that were already passed
-        :return: the sorted list of scripts
-        """
         scripts = self.get_scripts()
         scripts = self.filter_by_platform(scripts)
         scripts = self.filter_by_version(scripts)
@@ -957,17 +952,6 @@ version     La version a installer (la version de l'archive par defaut)."""
     ###########################################################################
     #                              UTILITY METHODS                            #
     ###########################################################################
-
-    @staticmethod
-    def get_version_from_file():
-        if os.path.exists(DBMigration.VERSION_FILE):
-            version = open(DBMigration.VERSION_FILE).read().strip()
-            # remove trailing '-SNAPSHOT' on version
-            if version.endswith(DBMigration.SNAPSHOT_POSTFIX):
-                version = version[:-len(DBMigration.SNAPSHOT_POSTFIX)]
-            return version
-        else:
-            raise AppException("Please set version on command line")
 
     @staticmethod
     def execute(command):
