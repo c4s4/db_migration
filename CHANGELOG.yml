@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.?.?
+  date:    ????-??-??
+  summary: ???
+  fixed:
+  - "Removed VERSION file support."
+
 - version: 2.5.2
   date:    2016-07-07
   summary: Bug Correction
