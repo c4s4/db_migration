@@ -857,11 +857,11 @@ version     La version a installer (la version de l'archive par defaut)."""
         print("-- Migration base '%s' on platform '%s'" % (self.db_config['database'], self.platform))
         print("-- From version '%s' to '%s'" % (self.from_version, self.version))
         print(self.meta_manager.script_header(self.db_config))
-        print('\n')
+        print()
         for script in self.select_scripts(passed=True):
             print("-- Script '%s'" % script)
             print(open(os.path.join(self.sql_dir, script.name)).read().strip())
-            print('\n')
+        print()
         print(self.meta_manager.script_footer(self.db_config))
 
     def migrate_dry(self):

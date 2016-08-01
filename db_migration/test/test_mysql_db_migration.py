@@ -233,13 +233,11 @@ class TestDBMigration(unittest.TestCase):
 -- From version '0.1' to '1.0'
 USE `test`;
 
-
 -- Script '1.0/all.sql'
 INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
-
 
 COMMIT;
 '''
