@@ -9,6 +9,12 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.5.4
+  date:    2016-08-01
+  summary: Bug fix release
+  fixed:
+  - "Fixed migration script generation from 'init'."
+
 - version: 2.5.3
   date:    2016-08-01
   summary: Bug fix release
