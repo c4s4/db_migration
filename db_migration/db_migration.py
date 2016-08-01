@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: UTF-8
 
+from __future__ import print_function
 from __future__ import with_statement
 import os
 import re
@@ -620,8 +621,9 @@ class Config(object):
 class Script(object):
 
     INFINITE = math.inf if hasattr(math, 'inf') else float('inf')
-    VERSION_INIT = []
+    VERSION_INIT = [-1]
     VERSION_NEXT = [INFINITE]
+    VERSION_NULL = []
     PLATFORM_ALL = 'all'
 
     def __init__(self, path):
@@ -699,8 +701,8 @@ version     La version a installer (la version de l'archive par defaut)."""
     def run_command_line():
         try:
             DBMigration.parse_command_line(sys.argv[1:]).run()
-        except AppException, e:
-            print str(e)
+        except AppException as e:
+            print(str(e))
             sys.exit(1)
 
     @staticmethod
@@ -720,11 +722,11 @@ version     La version a installer (la version de l'archive par defaut)."""
                                        "hdialus:c:p:m:",
                                        ["help", "dry-run", "init", "all", "local", "mute",
                                         "sql-dir=", "config=", "migration="])
-        except getopt.GetoptError, exception:
+        except getopt.GetoptError as exception:
             raise AppException("%s\n%s" % (exception.message, DBMigration.HELP))
         for opt, arg in opts:
             if opt in ("-h", "--help"):
-                print DBMigration.HELP
+                print(DBMigration.HELP)
                 sys.exit(0)
             elif opt in ("-d", "--dry-run"):
                 dry_run = True
@@ -826,7 +828,7 @@ version     La version a installer (la version de l'archive par defaut)."""
                 self.sql_dir = os.path.abspath(os.path.dirname(__file__))
         # manage version
         if not self.version and not self.all_scripts:
-            self.version = self.get_version_from_file()
+            raise AppException("You must pass version on command line")
         if not self.version:
             self.version = 'all'
             self.version_array = 0, 0, 0
@@ -844,41 +846,41 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.print_migration_script()
         else:
             if not self.mute:
-                print "Version '%s' on platform '%s'" % (self.version, self.db_config['hostname'])
-                print "Using base '%(database)s' as user '%(username)s'" % self.db_config
+                print("Version '%s' on platform '%s'" % (self.version, self.db_config['hostname']))
+                print("Using base '%(database)s' as user '%(username)s'" % self.db_config)
             if self.dry_run:
                 self.migrate_dry()
             else:
                 self.migrate()
 
     def print_migration_script(self):
-        print "-- Migration base '%s' on platform '%s'" % (self.db_config['database'], self.platform)
-        print "-- From version '%s' to '%s'" % (self.from_version, self.version)
-        print self.meta_manager.script_header(self.db_config)
-        print
+        print("-- Migration base '%s' on platform '%s'" % (self.db_config['database'], self.platform))
+        print("-- From version '%s' to '%s'" % (self.from_version, self.version))
+        print(self.meta_manager.script_header(self.db_config))
+        print()
         for script in self.select_scripts(passed=True):
-            print "-- Script '%s'" % script
-            print open(os.path.join(self.sql_dir, script.name)).read().strip()
-            print
-        print self.meta_manager.script_footer(self.db_config)
+            print("-- Script '%s'" % script)
+            print(open(os.path.join(self.sql_dir, script.name)).read().strip())
+            print()
+        print(self.meta_manager.script_footer(self.db_config))
 
     def migrate_dry(self):
-        print "Testing database connection...",
+        print("Testing database connection... ", end='')
         sys.stdout.flush()
         self.meta_manager.database_test()
-        print "OK"
-        print "SQL scripts to run:"
+        print("OK")
+        print("SQL scripts to run:")
         for script in self.select_scripts():
-            print "- %s" % script
+            print("- %s" % script)
 
     def migrate(self):
         if not self.mute:
-            print "Writing meta tables...",
+            print("Writing meta tables... ", end='')
             sys.stdout.flush()
         self.meta_manager.meta_create(self.init)
         self.meta_manager.install_begin(self.version)
         if not self.mute:
-            print "OK"
+            print("OK")
         install_success = True
         errors = []
         try:
@@ -888,14 +890,14 @@ version     La version a installer (la version de l'archive par defaut)."""
                 message = None
                 try:
                     if not self.mute:
-                        print "Running script '%s'... " % script,
+                        print("Running script '%s'... " % script, end='')
                         sys.stdout.flush()
                     self.meta_manager.run_script(os.path.join(self.sql_dir, script.name))
                     if not self.mute:
-                        print "OK"
-                except Exception, e:
+                        print("OK")
+                except Exception as e:
                     if not self.mute:
-                        print "ERROR"
+                        print("ERROR")
                     success = False
                     install_success = False
                     errors.append((script, str(e)))
@@ -906,13 +908,13 @@ version     La version a installer (la version de l'archive par defaut)."""
             self.meta_manager.install_done(install_success)
         if install_success:
             if not self.mute:
-                print "OK"
+                print("OK")
         else:
-            print '-'*80
-            print "Error running following migration scripts:"
+            print('-'*80)
+            print("Error running following migration scripts:")
             for error in errors:
-                print "- %s: %s" % error
-            print '-'*80
+                print("- %s: %s" % error)
+            print('-'*80)
             raise AppException("ERROR")
 
     ###########################################################################
@@ -920,11 +922,6 @@ version     La version a installer (la version de l'archive par defaut)."""
     ###########################################################################
 
     def select_scripts(self, passed=False):
-        """
-        Select scripts between versions
-        :param passed: tells if we include scripts that were already passed
-        :return: the sorted list of scripts
-        """
         scripts = self.get_scripts()
         scripts = self.filter_by_platform(scripts)
         scripts = self.filter_by_version(scripts)
@@ -941,9 +938,9 @@ version     La version a installer (la version de l'archive par defaut)."""
                 s.platform == Script.PLATFORM_ALL or s.platform == self.platform]
 
     def filter_by_version(self, scripts):
-        from_version = self.from_version_array if self.from_version else Script.VERSION_INIT
+        from_version = self.from_version_array if self.from_version else Script.VERSION_NULL
         to_version = self.version_array if not self.all_scripts else Script.VERSION_NEXT
-        return [s for s in scripts if from_version <= s.version <= to_version]
+        return [s for s in scripts if from_version < s.version <= to_version]
 
     def filter_passed(self, scripts):
         return [s for s in scripts if
@@ -956,17 +953,6 @@ version     La version a installer (la version de l'archive par defaut)."""
     ###########################################################################
     #                              UTILITY METHODS                            #
     ###########################################################################
-
-    @staticmethod
-    def get_version_from_file():
-        if os.path.exists(DBMigration.VERSION_FILE):
-            version = open(DBMigration.VERSION_FILE).read().strip()
-            # remove trailing '-SNAPSHOT' on version
-            if version.endswith(DBMigration.SNAPSHOT_POSTFIX):
-                version = version[:-len(DBMigration.SNAPSHOT_POSTFIX)]
-            return version
-        else:
-            raise AppException("Please set version on command line")
 
     @staticmethod
     def execute(command):

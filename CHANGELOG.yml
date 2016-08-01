@@ -9,6 +9,13 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.5.3
+  date:    2016-08-01
+  summary: Bug fix release
+  fixed:
+  - "Removed VERSION file support."
+  - "Fixed migration script generation (from version was included)."
+
 - version: 2.5.2
   date:    2016-07-07
   summary: Bug Correction

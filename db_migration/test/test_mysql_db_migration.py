@@ -3,6 +3,10 @@
 
 import os
 import unittest
+
+import sys
+from StringIO import StringIO
+
 import db_migration
 
 
@@ -24,15 +28,15 @@ class TestDBMigration(unittest.TestCase):
     #                                UTILITIES                                #
     ###########################################################################
 
-    def dump_actual(self):
-        #pylint: disable=E1121
-        output_file = os.path.join(self.ROOT_DIR, 'build', 'actual.sql')
-        return db_migration.DBMigration.\
-            execute("mysqldump -d -h%s -u%s -p%s test pet > %s" %
-                    (self.DB_CONFIG['hostname'],
-                     self.DB_CONFIG['username'],
-                     self.DB_CONFIG['password'],
-                     output_file))
+    @staticmethod
+    def run_db_migration(options):
+        old_stdout = sys.stdout
+        sys.stdout = output = StringIO()
+        try:
+            db_migration.DBMigration.parse_command_line(options).run()
+            return output.getvalue()
+        finally:
+            sys.stdout = old_stdout
 
     @staticmethod
     def strip_query(query):
@@ -58,9 +62,15 @@ class TestDBMigration(unittest.TestCase):
         finally:
             f.close()
 
-    @staticmethod
-    def run_db_migration(options):
-        db_migration.DBMigration.parse_command_line(options).run()
+    def dump_actual(self):
+        #pylint: disable=E1121
+        output_file = os.path.join(self.ROOT_DIR, 'build', 'actual.sql')
+        return db_migration.DBMigration.\
+            execute("mysqldump -d -h%s -u%s -p%s test pet > %s" %
+                    (self.DB_CONFIG['hostname'],
+                     self.DB_CONFIG['username'],
+                     self.DB_CONFIG['password'],
+                     output_file))
 
     def assert_schema(self, expected):
         self.dump_expected(expected)
@@ -92,6 +102,12 @@ class TestDBMigration(unittest.TestCase):
         self.MYSQL.run_query("DROP TABLE IF EXISTS test._scripts")
         self.MYSQL.run_query("DROP TABLE IF EXISTS test._install")
         self.MYSQL.run_query("DROP TABLE IF EXISTS test.pet")
+
+    def test_split_version(self):
+        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('1.2.3.4'))
+        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('01.02.03.04'))
+        self.assertEqual(db_migration.Script.VERSION_INIT, db_migration.Script.split_version('init'))
+        self.assertEqual(db_migration.Script.VERSION_NEXT, db_migration.Script.split_version('next'))
 
     def test_init_nominal(self):
         self.run_db_migration(['-ilu',
@@ -205,11 +221,52 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'beaver', 'tatoo': None,        'age': 7, 'id': 4, 'name': 'Nico'},
         )
         self.assert_data(EXPECTED_DATA)
+
+    def test_migration_script(self):
+        expected = '''-- Migration base 'test' on platform 'itg'
+-- From version '0.1' to '1.0'
+USE `test`;
+
+-- Script '1.0/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Nico', 7, 'beaver');
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-m', '0.1', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        expected = '''-- Migration base 'test' on platform 'itg'
+-- From version '0' to '1.0'
+USE `test`;
+
+-- Script '0.1/all.sql'
+ALTER TABLE pet ADD tatoo VARCHAR(20);
+
+-- Script '0.1/itg.sql'
+UPDATE pet SET tatoo='2-GKB-951' WHERE NAME='Réglisse';
+
+-- Script '1.0/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Nico', 7, 'beaver');
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-m', '0', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
 
     def test_command_line_options(self):
         try:
@@ -237,11 +294,6 @@ class TestDBMigration(unittest.TestCase):
             self.fail('Should have failed')
         except db_migration.AppException, e:
             self.assertTrue("Migration script generation is incompatible with options dry_run and local" in e.message)
-
-    def test_split_version(self):
-        self.assertEqual([1, 2, 3, 4], db_migration.Script.split_version('1.2.3.4'))
-        self.assertEqual(db_migration.Script.VERSION_INIT, db_migration.Script.split_version('init'))
-        self.assertEqual(db_migration.Script.VERSION_NEXT, db_migration.Script.split_version('next'))
 
 
 if __name__ == '__main__':
