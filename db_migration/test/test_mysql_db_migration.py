@@ -3,6 +3,10 @@
 
 import os
 import unittest
+
+import sys
+from StringIO import StringIO
+
 import db_migration
 
 
@@ -26,7 +30,13 @@ class TestDBMigration(unittest.TestCase):
 
     @staticmethod
     def run_db_migration(options):
-        db_migration.DBMigration.parse_command_line(options).run()
+        old_stdout = sys.stdout
+        sys.stdout = output = StringIO()
+        try:
+            db_migration.DBMigration.parse_command_line(options).run()
+            return output.getvalue()
+        finally:
+            sys.stdout = old_stdout
 
     @staticmethod
     def strip_query(query):
@@ -211,11 +221,32 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'beaver', 'tatoo': None,        'age': 7, 'id': 4, 'name': 'Nico'},
         )
         self.assert_data(EXPECTED_DATA)
+
+    def test_migration_script(self):
+        expected = '''-- Migration base 'test' on platform 'itg'
+-- From version '0.1' to '1.0'
+USE `test`;
+
+
+-- Script '1.0/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Nico', 7, 'beaver');
+
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-m', '0.1', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
 
     def test_command_line_options(self):
         try:
