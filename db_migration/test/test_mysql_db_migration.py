@@ -412,6 +412,89 @@ COMMIT;
                                         '-m', 'init', 'itg', '1.0'])
         self.assertEquals(expected, actual)
 
+    def test_dry_run(self):
+        expected = '''Version 'all' on platform 'localhost'
+Using base 'test' as user 'test'
+Writing meta tables... OK
+SQL scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- 1.0/all.sql
+- next/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', '-a', 'itg'])
+        self.assertEquals(expected, actual)
+        expected = '''Version '1.0' on platform 'localhost'
+Using base 'test' as user 'test'
+Writing meta tables... OK
+SQL scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- 1.0/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        expected = '''Version '0.1' on platform 'localhost'
+Using base 'test' as user 'test'
+Writing meta tables... OK
+SQL scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', 'itg', '0.1'])
+        self.assertEquals(expected, actual)
+        self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                               '-i', 'itg', '0.1'])
+        expected = '''Version '1.0' on platform 'localhost'
+Using base 'test' as user 'test'
+Writing meta tables... OK
+SQL scripts to run:
+- 1.0/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        expected = '''Version 'all' on platform 'localhost'
+Using base 'test' as user 'test'
+Writing meta tables... OK
+SQL scripts to run:
+- 1.0/all.sql
+- next/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-a', 'itg'])
+        self.assertEquals(expected, actual)
+        expected = '''Version 'all' on platform 'localhost'
+Using base 'test' as user 'test'
+Writing meta tables... OK
+SQL scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- 1.0/all.sql
+- next/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', '-a', 'itg'])
+        self.assertEquals(expected, actual)
+
     def test_command_line_options(self):
         try:
             db_migration.DBMigration.parse_command_line(('-c', self.CONFIG_FILE))
