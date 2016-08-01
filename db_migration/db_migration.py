@@ -621,8 +621,9 @@ class Config(object):
 class Script(object):
 
     INFINITE = math.inf if hasattr(math, 'inf') else float('inf')
-    VERSION_INIT = []
+    VERSION_INIT = [-1]
     VERSION_NEXT = [INFINITE]
+    VERSION_NULL = []
     PLATFORM_ALL = 'all'
 
     def __init__(self, path):
@@ -937,9 +938,9 @@ version     La version a installer (la version de l'archive par defaut)."""
                 s.platform == Script.PLATFORM_ALL or s.platform == self.platform]
 
     def filter_by_version(self, scripts):
-        from_version = self.from_version_array if self.from_version else Script.VERSION_INIT
+        from_version = self.from_version_array if self.from_version else Script.VERSION_NULL
         to_version = self.version_array if not self.all_scripts else Script.VERSION_NEXT
-        return [s for s in scripts if from_version <= s.version <= to_version]
+        return [s for s in scripts if from_version < s.version <= to_version]
 
     def filter_passed(self, scripts):
         return [s for s in scripts if
