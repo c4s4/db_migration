@@ -228,7 +228,7 @@ class TestDBMigration(unittest.TestCase):
         )
         self.assert_data(EXPECTED_DATA)
 
-    def test_migration_script(self):
+    def test_migration_script_mysql(self):
         # nominal case
         expected = '''-- Migration base 'test' on platform 'itg'
 -- From version '0.1' to '1.0'
@@ -309,6 +309,106 @@ COMMIT;
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-m', 'init', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+
+    def test_migration_script_oracle(self):
+        # nominal case
+        expected = '''-- Migration base 'orcl' on platform 'itg'
+-- From version '0.1' to '1.0'
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT 9;
+
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/oracle/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/oracle' % self.ROOT_DIR,
+                                        '-m', '0.1', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        # another nominal case
+        expected = '''-- Migration base 'orcl' on platform 'itg'
+-- From version '0' to '1.0'
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT 9;
+
+-- Script '0.1/all.sql'
+ALTER TABLE PET ADD TATOO VARCHAR(20);
+
+-- Script '0.1/itg.sql'
+UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='Réglisse';
+
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/oracle/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/oracle' % self.ROOT_DIR,
+                                        '-m', '0', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        # nominal case from init
+        expected = '''-- Migration base 'orcl' on platform 'itg'
+-- From version 'init' to '1.0'
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT 9;
+
+-- Script 'init/all.sql'
+-- clean schema
+BEGIN
+  FOR cur_rec IN (SELECT object_name, object_type
+                  FROM   user_objects
+                  WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
+    BEGIN
+      IF cur_rec.object_name = 'INSTALL_' OR cur_rec.object_name = 'SCRIPTS_' OR
+         cur_rec.object_name = 'INSTALL_SEQUENCE' THEN
+        CONTINUE;
+      end IF;
+      IF cur_rec.object_type = 'TABLE' THEN
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
+      ELSE
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"';
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.put_line('FAILED: DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"');
+    END;
+  END LOOP;
+END;
+/
+-- create table PET
+CREATE TABLE PET (
+  ID NUMBER(10) NOT NULL,
+  NAME VARCHAR(20) NOT NULL,
+  AGE NUMBER(2) NOT NULL,
+  SPECIES VARCHAR(10) NOT NULL,
+  PRIMARY KEY  (id)
+);
+CREATE SEQUENCE PET_SEQUENCE
+  START WITH 1
+  INCREMENT BY 1
+  CACHE 100;
+
+-- Script 'init/itg.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Réglisse', 14, 'dog');
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Mignonne', 13, 'cat');
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Ophélie', 19, 'cat');
+
+-- Script '0.1/all.sql'
+ALTER TABLE PET ADD TATOO VARCHAR(20);
+
+-- Script '0.1/itg.sql'
+UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='Réglisse';
+
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/oracle/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/oracle' % self.ROOT_DIR,
                                         '-m', 'init', 'itg', '1.0'])
         self.assertEquals(expected, actual)
 
