@@ -428,7 +428,6 @@ class MysqlMetaManager(object):
     VALUES (%(script)s, now(), %(success)s, %(install_id)s, %(message)s)"""
     SQL_SCRIPT_INSTALLED = """SELECT COUNT(*) AS installed FROM _scripts
     WHERE filename = %(script)s AND success = 1"""
-    SQL_TEST_META = """SELECT COUNT(*) FROM _install"""
 
     def __init__(self, mysql):
         self.mysql = mysql
@@ -443,12 +442,6 @@ class MysqlMetaManager(object):
             self.mysql.run_query(query=self.SQL_DROP_META_INSTALL)
         self.mysql.run_query(query=self.SQL_CREATE_META_INSTALL)
         self.mysql.run_query(query=self.SQL_CREATE_META_SCRIPTS)
-
-    def database_test(self):
-        try:
-            self.mysql.run_query(query=self.SQL_TEST_META)
-        except:
-            raise AppException("Error accessing database")
 
     def install_begin(self, version):
         parameters = {'version': version}
@@ -543,9 +536,6 @@ VALUES
 SELECT COUNT(*) AS INSTALLED FROM SCRIPTS_
 WHERE FILENAME = %(script)s AND SUCCESS = 1;
 """
-    SQL_TEST_META = """
-SELECT 42 FROM DUAL;
-"""
 
     def __init__(self, sqlplus):
         self.sqlplus = sqlplus
@@ -564,12 +554,6 @@ SELECT 42 FROM DUAL;
             self.sqlplus.run_query(query=self.SQL_CREATE_META_INSTALL)
         if not self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
             self.sqlplus.run_query(query=self.SQL_CREATE_META_SCRIPTS)
-
-    def database_test(self):
-        try:
-            self.sqlplus.run_query(query=self.SQL_TEST_META)
-        except:
-            raise AppException("Error accessing database")
 
     def install_begin(self, version):
         parameters = {'version': version}
@@ -868,9 +852,9 @@ version     La version a installer (la version de l'archive par defaut)."""
         print(self.meta_manager.script_footer(self.db_config))
 
     def migrate_dry(self):
-        print("Testing database connection... ", end='')
+        print("Writing meta tables... ", end='')
         sys.stdout.flush()
-        self.meta_manager.database_test()
+        self.meta_manager.meta_create(self.init)
         print("OK")
         print("SQL scripts to run:")
         for script in self.select_scripts():
