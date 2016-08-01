@@ -838,10 +838,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         else:
             self.version_array = Script.split_version(self.version)
         if self.from_version:
-            if self.from_version == 'init':
-                self.from_version_array = Script.VERSION_NULL
-            else:
-                self.from_version_array = Script.split_version(self.from_version, from_version=True)
+            self.from_version_array = Script.split_version(self.from_version, from_version=True)
 
     ###########################################################################
     #                              RUNTIME                                    #
