@@ -649,9 +649,12 @@ class Script(object):
         return self.name
 
     @staticmethod
-    def split_version(version):
+    def split_version(version, from_version=False):
         if version == 'init':
-            return Script.VERSION_INIT
+            if from_version:
+                return Script.VERSION_NULL
+            else:
+                return Script.VERSION_INIT
         elif version == 'next':
             return Script.VERSION_NEXT
         elif re.match('\\d+(\\.\\d+)*', version):
@@ -835,7 +838,10 @@ version     La version a installer (la version de l'archive par defaut)."""
         else:
             self.version_array = Script.split_version(self.version)
         if self.from_version:
-            self.from_version_array = Script.split_version(self.from_version)
+            if self.from_version == 'init':
+                self.from_version_array = Script.VERSION_NULL
+            else:
+                self.from_version_array = Script.split_version(self.from_version, from_version=True)
 
     ###########################################################################
     #                              RUNTIME                                    #

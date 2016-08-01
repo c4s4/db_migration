@@ -229,6 +229,7 @@ class TestDBMigration(unittest.TestCase):
         self.assert_data(EXPECTED_DATA)
 
     def test_migration_script(self):
+        # nominal case
         expected = '''-- Migration base 'test' on platform 'itg'
 -- From version '0.1' to '1.0'
 USE `test`;
@@ -245,6 +246,7 @@ COMMIT;
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                         '-m', '0.1', 'itg', '1.0'])
         self.assertEquals(expected, actual)
+        # another nominal case
         expected = '''-- Migration base 'test' on platform 'itg'
 -- From version '0' to '1.0'
 USE `test`;
@@ -266,6 +268,48 @@ COMMIT;
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                         '-m', '0', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        # nominal case from init
+        expected = '''-- Migration base 'test' on platform 'itg'
+-- From version 'init' to '1.0'
+USE `test`;
+
+-- Script 'init/all.sql'
+DROP TABLE IF EXISTS pet;
+
+CREATE TABLE pet (
+  id INTEGER NOT NULL AUTO_INCREMENT,
+  name VARCHAR(20) NOT NULL,
+  age INTEGER NOT NULL,
+  species VARCHAR(10) NOT NULL,
+  PRIMARY KEY  (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Script 'init/itg.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Réglisse', 14, 'dog'),
+  ('Mignonne', 13, 'cat'),
+  ('Ophélie', 19, 'cat');
+
+-- Script '0.1/all.sql'
+ALTER TABLE pet ADD tatoo VARCHAR(20);
+
+-- Script '0.1/itg.sql'
+UPDATE pet SET tatoo='2-GKB-951' WHERE NAME='Réglisse';
+
+-- Script '1.0/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Nico', 7, 'beaver');
+
+COMMIT;
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-m', 'init', 'itg', '1.0'])
         self.assertEquals(expected, actual)
 
     def test_command_line_options(self):
