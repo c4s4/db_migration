@@ -9,6 +9,13 @@
 #   removed:
 #   - "Description about what was removed."
 
+- version: 2.6.0
+  date:    2016-08-??
+  summary: ???
+  added:
+  - "Getting list of passed scripts in a single query (roughly divides the
+     number of database queries by 2)."
+
 - version: 2.5.4
   date:    2016-08-01
   summary: Bug fix release

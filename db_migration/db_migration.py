@@ -387,7 +387,27 @@ class SqlplusException(Exception):
         return self.message
 
 
-class MysqlMetaManager(object):
+class MetaManager(object):
+
+    def __init__(self, database):
+        self.database = database
+        self.install_id = None
+        self.installed_scripts = None
+
+    def script_passed(self, script):
+        self._load_installed_scripts()
+        return script in self.installed_scripts
+
+    def _load_installed_scripts(self):
+        if self.installed_scripts is None:
+            result = self.database.run_query(query=self.SQL_INSTALLED_SCRIPTS)
+            if result:
+                self.installed_scripts = [l['SCRIPT'] for l in result]
+            else:
+                self.installed_scripts = []
+
+
+class MysqlMetaManager(MetaManager):
 
     SQL_CREATE_META_INSTALL = """CREATE TABLE IF NOT EXISTS _install (
       id integer NOT NULL AUTO_INCREMENT,
@@ -420,31 +440,29 @@ class MysqlMetaManager(object):
     VALUES (%(script)s, now(), %(success)s, %(install_id)s, %(message)s)"""
     SQL_SCRIPT_INSTALLED = """SELECT COUNT(*) AS installed FROM _scripts
     WHERE filename = %(script)s AND success = 1"""
-
-    def __init__(self, mysql):
-        self.mysql = mysql
-        self.install_id = None
+    SQL_INSTALLED_SCRIPTS = """
+    SELECT filename AS SCRIPT FROM _scripts WHERE success = 1"""
 
     def run_script(self, script, cast=None):
-        return self.mysql.run_script(script=script, cast=cast)
+        return self.database.run_script(script=script, cast=cast)
 
     def meta_create(self, init):
         if init:
-            self.mysql.run_query(query=self.SQL_DROP_META_SCRIPTS)
-            self.mysql.run_query(query=self.SQL_DROP_META_INSTALL)
-        self.mysql.run_query(query=self.SQL_CREATE_META_INSTALL)
-        self.mysql.run_query(query=self.SQL_CREATE_META_SCRIPTS)
+            self.database.run_query(query=self.SQL_DROP_META_SCRIPTS)
+            self.database.run_query(query=self.SQL_DROP_META_INSTALL)
+        self.database.run_query(query=self.SQL_CREATE_META_INSTALL)
+        self.database.run_query(query=self.SQL_CREATE_META_SCRIPTS)
 
     def install_begin(self, version):
         parameters = {'version': version}
-        self.install_id = int(self.mysql.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
+        self.install_id = int(self.database.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
 
     def install_done(self, success):
         parameters = {
             'success': 1 if success else 0,
             'install_id': self.install_id,
         }
-        self.mysql.run_query(query=self.SQL_INSTALL_DONE, parameters=parameters)
+        self.database.run_query(query=self.SQL_INSTALL_DONE, parameters=parameters)
 
     def script_run(self, script, success, message):
         parameters = {
@@ -453,13 +471,7 @@ class MysqlMetaManager(object):
             'message': message if message else '',
             'install_id': self.install_id,
         }
-        self.mysql.run_query(query=self.SQL_SCRIPT_INSTALL, parameters=parameters)
-
-    def script_passed(self, script):
-        parameters = {
-            'script': script,
-        }
-        return int(self.mysql.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['installed']) > 0
+        self.database.run_query(query=self.SQL_SCRIPT_INSTALL, parameters=parameters)
 
     def script_header(self, db_config):
         return "USE `%(database)s`;" % db_config
@@ -468,7 +480,7 @@ class MysqlMetaManager(object):
         return "COMMIT;"
 
 
-class SqlplusMetaManager(object):
+class SqlplusMetaManager(MetaManager):
 
     SQL_TABLE_EXIST = """
     SELECT count(*) AS EXIST FROM USER_TABLES
@@ -528,35 +540,33 @@ class SqlplusMetaManager(object):
     SELECT COUNT(*) AS INSTALLED FROM SCRIPTS_
       WHERE FILENAME = %(script)s AND SUCCESS = 1;
     """
-
-    def __init__(self, sqlplus):
-        self.sqlplus = sqlplus
-        self.install_id = None
+    SQL_INSTALLED_SCRIPTS = """
+    SELECT filename AS SCRIPT FROM SCRIPTS_ WHERE success = 1"""
 
     def run_script(self, script, cast=None):
-        return self.sqlplus.run_script(script=script, cast=cast)
+        return self.database.run_script(script=script, cast=cast)
 
     def meta_create(self, init):
         if init:
-            if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
-                self.sqlplus.run_query(query=self.SQL_DROP_META_SCRIPTS)
-            if self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
-                self.sqlplus.run_query(query=self.SQL_DROP_META_INSTALL)
-        if not self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
-            self.sqlplus.run_query(query=self.SQL_CREATE_META_INSTALL)
-        if not self.sqlplus.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
-            self.sqlplus.run_query(query=self.SQL_CREATE_META_SCRIPTS)
+            if self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
+                self.database.run_query(query=self.SQL_DROP_META_SCRIPTS)
+            if self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
+                self.database.run_query(query=self.SQL_DROP_META_INSTALL)
+        if not self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
+            self.database.run_query(query=self.SQL_CREATE_META_INSTALL)
+        if not self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
+            self.database.run_query(query=self.SQL_CREATE_META_SCRIPTS)
 
     def install_begin(self, version):
         parameters = {'version': version}
-        self.install_id = int(self.sqlplus.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
+        self.install_id = int(self.database.run_query(query=self.SQL_INSTALL_BEGIN, parameters=parameters)[0]['ID'])
 
     def install_done(self, success):
         parameters = {
             'success': 1 if success else 0,
             'install_id': self.install_id,
         }
-        self.sqlplus.run_query(query=self.SQL_INSTALL_DONE, parameters=parameters)
+        self.database.run_query(query=self.SQL_INSTALL_DONE, parameters=parameters)
 
     def script_run(self, script, success, message):
         parameters = {
@@ -565,13 +575,7 @@ class SqlplusMetaManager(object):
             'message': message if message else '',
             'install_id': self.install_id,
         }
-        self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALL, parameters=parameters)
-
-    def script_passed(self, script):
-        parameters = {
-            'script': script,
-        }
-        return int(self.sqlplus.run_query(query=self.SQL_SCRIPT_INSTALLED, parameters=parameters)[0]['INSTALLED']) > 0
+        self.database.run_query(query=self.SQL_SCRIPT_INSTALL, parameters=parameters)
 
     def script_header(self, db_config): # pylint: disable=W0613
         return "WHENEVER SQLERROR EXIT SQL.SQLCODE;\nWHENEVER OSERROR EXIT 9;"
