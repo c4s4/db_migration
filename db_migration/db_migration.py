@@ -501,23 +501,30 @@ VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
 class SqlplusMetaManager(MetaManager):
 
     SQL_DROP_META = """
+    DECLARE nb NUMBER(10);
     BEGIN
       SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'SCRIPTS_';
-      IF nb > 0 THEN
-        DROP TABLE SCRIPTS_;
+      IF (nb > 0) THEN
+        EXECUTE IMMEDIATE 'DROP TABLE SCRIPTS_';
       END IF;
     END;
+    /
+    DECLARE nb NUMBER(10);
     BEGIN
       SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'INSTALL_';
-      IF nb > 0 THEN
-        DROP TABLE INSTALL_;
+      IF (nb > 0) THEN
+        EXECUTE IMMEDIATE 'DROP TABLE INSTALL_';
       END IF;
     END;
+    /
     """
     SQL_CREATE_META = """
+    DECLARE nb NUMBER(10);
     BEGIN
+      nb := 0;
       SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'INSTALL_';
-      IF nb = 0 THEN
+      IF (nb = 0) THEN
+        EXECUTE IMMEDIATE '
         CREATE TABLE INSTALL_ (
           ID NUMBER(10) NOT NULL,
           VERSION VARCHAR(20) NOT NULL,
@@ -525,12 +532,16 @@ class SqlplusMetaManager(MetaManager):
           END_DATE TIMESTAMP,
           SUCCESS NUMBER(1) NOT NULL,
           PRIMARY KEY (ID)
-        );
+        )';
       END IF;
     END;
+    /
+    DECLARE nb NUMBER(10);
     BEGIN
+      nb := 0;
       SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'SCRIPTS_';
-      IF nb = 0 THEN
+      IF (nb = 0) THEN
+        EXECUTE IMMEDIATE '
         CREATE TABLE SCRIPTS_ (
           ID NUMBER(10) NOT NULL,
           FILENAME VARCHAR(255) NOT NULL,
@@ -542,9 +553,10 @@ class SqlplusMetaManager(MetaManager):
           CONSTRAINT FK_INSTALL_ID
             FOREIGN KEY (INSTALL_ID)
             REFERENCES INSTALL_(ID)
-        );
+        )';
       END IF;
     END;
+    /
     """
     SQL_LIST_SCRIPTS = """
     SELECT filename AS SCRIPT FROM SCRIPTS_ WHERE success = 1;"""
