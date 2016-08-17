@@ -417,7 +417,6 @@ class MetaManager(object):
             self.installed_scripts = []
 
     def script_passed(self, script):
-        self._load_installed_scripts()
         return script in self.installed_scripts
 
     def install_begin(self, version):
