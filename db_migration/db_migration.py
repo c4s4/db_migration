@@ -849,11 +849,17 @@ version     La version a installer (la version de l'archive par defaut)."""
             if not self.mute:
                 print("OK")
             scripts = self.select_scripts(passed=False)
-            print("SQL scripts to run:")
-            for script in self.select_scripts():
-                print("- %s" % script)
-            if not self.dry_run:
-                print("Running migration scripts... ", end='')
+            if self.dry_run:
+                print("SQL scripts to run:")
+                for script in self.select_scripts():
+                    print("- %s" % script)
+            else:
+                nb_scripts = len(scripts)
+                if nb_scripts:
+                    print("Running %s migration scripts... " % len(scripts), end='')
+                    sys.stdout.flush()
+                else:
+                    print("No migration script to run")
                 script = self.migration_script(scripts, meta=True, version=self.version)
                 _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
                 with open(filename, 'w') as handle:
