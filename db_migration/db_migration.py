@@ -281,7 +281,7 @@ class SqlplusCommando(object):
 class SqlplusResultParser(HTMLParser.HTMLParser):
 
     DATE_FORMAT = '%d/%m/%y %H:%M:%S'
-    ERRORS = ('unknown', 'warning', 'error')
+    REGEXP_ERRORS = ('^.*unknown.*$|^.*warning.*$|^.*error.*$')
     CASTS = (
         (r'-?\d+', int),
         (r'-?\d*,?\d*([Ee][+-]?\d+)?', lambda f: float(f.replace(',', '.'))),
@@ -306,9 +306,10 @@ class SqlplusResultParser(HTMLParser.HTMLParser):
         if not source.strip():
             return ()
         if check_errors:
-            for regexp in SqlplusResultParser.ERRORS:
-                if re.search(regexp, source, re.IGNORECASE):
-                    raise SqlplusException(SqlplusErrorParser.parse(source))
+            errors = re.findall(SqlplusResultParser.REGEXP_ERRORS, source,
+                                re.MULTILINE + re.IGNORECASE)
+            if errors:
+                raise SqlplusException('\n'.join(errors))
         parser = SqlplusResultParser(cast)
         parser.feed(source)
         return tuple(parser.result)
@@ -354,6 +355,8 @@ class SqlplusResultParser(HTMLParser.HTMLParser):
 
 class SqlplusErrorParser(HTMLParser.HTMLParser):
 
+    NB_ERROR_LINES = 4
+
     def __init__(self):
         HTMLParser.HTMLParser.__init__(self)
         self.active = False
@@ -363,7 +366,8 @@ class SqlplusErrorParser(HTMLParser.HTMLParser):
     def parse(source):
         parser = SqlplusErrorParser()
         parser.feed(source)
-        return '\n'.join([l for l in parser.message.split('\n') if l.strip() != ''])
+        lines = [l for l in parser.message.split('\n') if l.strip() != '']
+        return '\n'.join(lines[-SqlplusErrorParser.NB_ERROR_LINES:])
 
     def handle_starttag(self, tag, attrs):
         if tag == 'body':
@@ -394,6 +398,9 @@ class MetaManager(object):
         self.database = database
         self.install_id = None
         self.installed_scripts = None
+
+    def run_script(self, script, cast=None):
+        return self.database.run_script(script=script, cast=cast)
 
     def script_passed(self, script):
         self._load_installed_scripts()
@@ -450,9 +457,6 @@ VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
     ORDER BY id DESC LIMIT 1;"""
     SQL_INSTALLED_SCRIPTS = """
     SELECT filename AS SCRIPT FROM _scripts WHERE success = 1"""
-
-    def run_script(self, script, cast=None):
-        return self.database.run_script(script=script, cast=cast)
 
     def meta_create(self, init):
         if init:
@@ -546,9 +550,6 @@ VALUES
     ) WHERE ROWNUM = 1;"""
     SQL_INSTALLED_SCRIPTS = """
     SELECT filename AS SCRIPT FROM SCRIPTS_ WHERE success = 1"""
-
-    def run_script(self, script, cast=None):
-        return self.database.run_script(script=script, cast=cast)
 
     def meta_create(self, init):
         if init:
@@ -870,9 +871,12 @@ version     La version a installer (la version de l'archive par defaut)."""
                     print('OK')
                 except Exception as e:
                     script = self.meta_manager.last_error()
-                    print('ERROR')
+                    print()
                     print('-'*80)
-                    print("Error running script '%s' in file '%s':" % (script, filename))
+                    if script:
+                        print("Error running script '%s' in file '%s':" % (script, filename))
+                    else:
+                        print("Error in file '%s':" % filename)
                     print(e)
                     print('-'*80)
                     raise AppException("ERROR")
