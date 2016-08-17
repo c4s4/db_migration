@@ -910,8 +910,9 @@ version     La version a installer (la version de l'archive par defaut)."""
                 result += '\n\n'
             result += "-- Script '%s'\n" % script
             result += open(os.path.join(self.sql_dir, script.name)).read().strip()
-            result += '\n'
-            result += self.meta_manager.COMMIT
+            if meta:
+                result += '\n'
+                result += self.meta_manager.COMMIT
             result += '\n\n'
             if meta:
                 result += "-- Meta script ending\n"
