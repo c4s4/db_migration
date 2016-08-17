@@ -888,7 +888,7 @@ version     La version a installer (la version de l'archive par defaut)."""
             result += "-- Meta installation beginning\n"
             result += self.meta_manager.install_begin(version=version)
             result += '\n'
-            result += self.meta_manager.COMMIT;
+            result += self.meta_manager.COMMIT
             result += '\n\n'
         for script in scripts:
             if meta:
