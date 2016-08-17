@@ -394,6 +394,8 @@ class SqlplusException(Exception):
 
 class MetaManager(object):
 
+    COMMIT = 'COMMIT;'
+
     def __init__(self, database):
         self.database = database
         self.install_id = None
@@ -402,68 +404,21 @@ class MetaManager(object):
     def run_script(self, script, cast=None):
         return self.database.run_script(script=script, cast=cast)
 
+    def meta_create(self, init):
+        if init:
+            self.database.run_query(query=self.SQL_DROP_META)
+        self.database.run_query(query=self.SQL_CREATE_META)
+
+    def list_scripts(self):
+        result = self.database.run_query(query=self.SQL_LIST_SCRIPTS)
+        if result:
+            self.installed_scripts = [l['SCRIPT'] for l in result]
+        else:
+            self.installed_scripts = []
+
     def script_passed(self, script):
         self._load_installed_scripts()
         return script in self.installed_scripts
-
-    def _load_installed_scripts(self):
-        if self.installed_scripts is None:
-            result = self.database.run_query(query=self.SQL_INSTALLED_SCRIPTS)
-            if result:
-                self.installed_scripts = [l['SCRIPT'] for l in result]
-            else:
-                self.installed_scripts = []
-
-
-class MysqlMetaManager(MetaManager):
-
-    SQL_CREATE_META_INSTALL = """CREATE TABLE IF NOT EXISTS _install (
-      id integer NOT NULL AUTO_INCREMENT,
-      version varchar(20) NOT NULL,
-      start_date datetime NOT NULL,
-      end_date datetime,
-      success tinyint NOT NULL,
-      PRIMARY KEY (id)
-    )"""
-    SQL_CREATE_META_SCRIPTS = """CREATE TABLE IF NOT EXISTS _scripts (
-      id integer NOT NULL AUTO_INCREMENT,
-      filename varchar(255) NOT NULL,
-      install_date datetime NOT NULL,
-      success tinyint NOT NULL,
-      install_id integer NOT NULL,
-      error_message text,
-      PRIMARY KEY (id),
-      CONSTRAINT fk_install_id
-        FOREIGN KEY (install_id)
-        REFERENCES _install(id)
-    )"""
-    SQL_DROP_META_INSTALL = """DROP TABLE IF EXISTS _install"""
-    SQL_DROP_META_SCRIPTS = """DROP TABLE IF EXISTS _scripts"""
-    SQL_INSTALL_BEGIN = """INSERT INTO _install
-  (version, start_date, end_date, success)
-VALUES
-  ('%(version)s', now(), null, 0);"""
-    SQL_INSTALL_DONE = """UPDATE _install
-  SET end_date = now(), success = %(success)s
-  ORDER BY id DESC LIMIT 1;"""
-    SQL_SCRIPT_BEGIN = """INSERT INTO _scripts
-  (filename, install_date, success, install_id, error_message)
-VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
-    SQL_SCRIPT_DONE = """UPDATE _scripts
-  SET success = 1
-  ORDER BY id DESC LIMIT 1;"""
-    SQL_LAST_ERROR = """SELECT filename AS SCRIPT FROM _scripts
-    WHERE success = 0
-    ORDER BY id DESC LIMIT 1;"""
-    SQL_INSTALLED_SCRIPTS = """
-    SELECT filename AS SCRIPT FROM _scripts WHERE success = 1"""
-
-    def meta_create(self, init):
-        if init:
-            self.database.run_query(query=self.SQL_DROP_META_SCRIPTS)
-            self.database.run_query(query=self.SQL_DROP_META_INSTALL)
-        self.database.run_query(query=self.SQL_CREATE_META_INSTALL)
-        self.database.run_query(query=self.SQL_CREATE_META_SCRIPTS)
 
     def install_begin(self, version):
         parameters = {'version': version}
@@ -488,48 +443,111 @@ VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
         else:
             return None
 
+
+class MysqlMetaManager(MetaManager):
+
+    SQL_DROP_META = """
+    DROP TABLE IF EXISTS _scripts;
+    DROP TABLE IF EXISTS _install;
+    """
+    SQL_CREATE_META = """
+    CREATE TABLE IF NOT EXISTS _install (
+      id integer NOT NULL AUTO_INCREMENT,
+      version varchar(20) NOT NULL,
+      start_date datetime NOT NULL,
+      end_date datetime,
+      success tinyint NOT NULL,
+      PRIMARY KEY (id)
+    );
+    CREATE TABLE IF NOT EXISTS _scripts (
+      id integer NOT NULL AUTO_INCREMENT,
+      filename varchar(255) NOT NULL,
+      install_date datetime NOT NULL,
+      success tinyint NOT NULL,
+      install_id integer NOT NULL,
+      error_message text,
+      PRIMARY KEY (id),
+      CONSTRAINT fk_install_id
+        FOREIGN KEY (install_id)
+        REFERENCES _install(id)
+    );
+    """
+    SQL_LIST_SCRIPTS = """
+    SELECT filename AS SCRIPT FROM _scripts WHERE success = 1"""
+    SQL_INSTALL_BEGIN = """INSERT INTO _install
+  (version, start_date, end_date, success)
+VALUES
+  ('%(version)s', now(), null, 0);"""
+    SQL_INSTALL_DONE = """UPDATE _install
+  SET end_date = now(), success = %(success)s
+  ORDER BY id DESC LIMIT 1;"""
+    SQL_SCRIPT_BEGIN = """INSERT INTO _scripts
+  (filename, install_date, success, install_id, error_message)
+VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
+    SQL_SCRIPT_DONE = """UPDATE _scripts
+  SET success = 1
+  ORDER BY id DESC LIMIT 1;"""
+    SQL_LAST_ERROR = """SELECT filename AS SCRIPT FROM _scripts
+    WHERE success = 0
+    ORDER BY id DESC LIMIT 1;"""
+
     def script_header(self, db_config):
         return "USE `%(database)s`;" % db_config
 
     def script_footer(self, db_config): # pylint: disable=W0613
         return "COMMIT;"
 
-    def commit(self):
-        return "COMMIT;"
-
 
 class SqlplusMetaManager(MetaManager):
 
-    SQL_TABLE_EXIST = """
-    SELECT count(*) AS EXIST FROM USER_TABLES
-    WHERE TABLE_NAME = %(table)s;
+    SQL_DROP_META = """
+    BEGIN
+      SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'SCRIPTS_';
+      IF nb > 0 THEN
+        DROP TABLE SCRIPTS_;
+      END IF;
+    END;
+    BEGIN
+      SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'INSTALL_';
+      IF nb > 0 THEN
+        DROP TABLE INSTALL_;
+      END IF;
+    END;
     """
-    SQL_CREATE_META_INSTALL = """
-    CREATE TABLE INSTALL_ (
-      ID NUMBER(10) NOT NULL,
-      VERSION VARCHAR(20) NOT NULL,
-      START_DATE TIMESTAMP NOT NULL,
-      END_DATE TIMESTAMP,
-      SUCCESS NUMBER(1) NOT NULL,
-      PRIMARY KEY (ID)
-    );
+    SQL_CREATE_META = """
+    BEGIN
+      SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'INSTALL_';
+      IF nb = 0 THEN
+        CREATE TABLE INSTALL_ (
+          ID NUMBER(10) NOT NULL,
+          VERSION VARCHAR(20) NOT NULL,
+          START_DATE TIMESTAMP NOT NULL,
+          END_DATE TIMESTAMP,
+          SUCCESS NUMBER(1) NOT NULL,
+          PRIMARY KEY (ID)
+        );
+      END IF;
+    END;
+    BEGIN
+      SELECT count(*) INTO nb FROM user_tables WHERE table_name = 'SCRIPTS_';
+      IF nb = 0 THEN
+        CREATE TABLE SCRIPTS_ (
+          ID NUMBER(10) NOT NULL,
+          FILENAME VARCHAR(255) NOT NULL,
+          INSTALL_DATE TIMESTAMP NOT NULL,
+          SUCCESS NUMBER(1) NOT NULL,
+          INSTALL_ID NUMBER(10) NOT NULL,
+          ERROR_MESSAGE VARCHAR(4000),
+          PRIMARY KEY (ID),
+          CONSTRAINT FK_INSTALL_ID
+            FOREIGN KEY (INSTALL_ID)
+            REFERENCES INSTALL_(ID)
+        );
+      END IF;
+    END;
     """
-    SQL_CREATE_META_SCRIPTS = """
-    CREATE TABLE SCRIPTS_ (
-      ID NUMBER(10) NOT NULL,
-      FILENAME VARCHAR(255) NOT NULL,
-      INSTALL_DATE TIMESTAMP NOT NULL,
-      SUCCESS NUMBER(1) NOT NULL,
-      INSTALL_ID NUMBER(10) NOT NULL,
-      ERROR_MESSAGE VARCHAR(4000),
-      PRIMARY KEY (ID),
-      CONSTRAINT FK_INSTALL_ID
-        FOREIGN KEY (INSTALL_ID)
-        REFERENCES INSTALL_(ID)
-    );
-    """
-    SQL_DROP_META_INSTALL = """DROP TABLE INSTALL_;"""
-    SQL_DROP_META_SCRIPTS = """DROP TABLE SCRIPTS_;"""
+    SQL_LIST_SCRIPTS = """
+    SELECT filename AS SCRIPT FROM SCRIPTS_ WHERE success = 1;"""
     SQL_INSTALL_BEGIN = """INSERT INTO INSTALL_
   (ID, VERSION, START_DATE, END_DATE, SUCCESS)
 VALUES
@@ -548,50 +566,11 @@ VALUES
       SELECT FILENAME FROM SCRIPTS_
       WHERE SUCCESS = 0 ORDER BY ID DESC
     ) WHERE ROWNUM = 1;"""
-    SQL_INSTALLED_SCRIPTS = """
-    SELECT filename AS SCRIPT FROM SCRIPTS_ WHERE success = 1"""
-
-    def meta_create(self, init):
-        if init:
-            if self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
-                self.database.run_query(query=self.SQL_DROP_META_SCRIPTS)
-            if self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
-                self.database.run_query(query=self.SQL_DROP_META_INSTALL)
-        if not self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'INSTALL_'})[0]['EXIST']:
-            self.database.run_query(query=self.SQL_CREATE_META_INSTALL)
-        if not self.database.run_query(query=self.SQL_TABLE_EXIST, parameters={'table': 'SCRIPTS_'})[0]['EXIST']:
-            self.database.run_query(query=self.SQL_CREATE_META_SCRIPTS)
-
-    def install_begin(self, version):
-        parameters = {'version': version}
-        return self.SQL_INSTALL_BEGIN % parameters
-
-    def install_done(self, success):
-        parameters = {'success': 1 if success else 0}
-        return self.SQL_INSTALL_DONE % parameters
-
-    def script_begin(self, script):
-        parameters = {'script': script}
-        return self.SQL_SCRIPT_BEGIN % parameters
-
-    def script_done(self, script):
-        parameters = {'script': script}
-        return self.SQL_SCRIPT_DONE % parameters
-
-    def last_error(self):
-        result = self.database.run_query(self.SQL_LAST_ERROR)
-        if result:
-            return result[0]['SCRIPT']
-        else:
-            return None
 
     def script_header(self, db_config): # pylint: disable=W0613
         return "WHENEVER SQLERROR EXIT SQL.SQLCODE;\nWHENEVER OSERROR EXIT 9;"
 
     def script_footer(self, db_config): # pylint: disable=W0613
-        return "COMMIT;"
-
-    def commit(self):
         return "COMMIT;"
 
 
@@ -843,17 +822,25 @@ version     La version a installer (la version de l'archive par defaut)."""
             if not self.mute:
                 print("Version '%s' on platform '%s'" % (self.version, self.db_config['hostname']))
                 print("Using base '%(database)s' as user '%(username)s'" % self.db_config)
-                print("Writing meta tables... ", end='')
+                print("Creating meta tables... ", end='')
                 sys.stdout.flush()
             self.meta_manager.meta_create(self.init)
-            self.meta_manager.install_begin(self.version)
             if not self.mute:
-                print("OK")
+                print('OK')
+            if not self.mute:
+                print("Listing passed scripts... ", end='')
+            self.meta_manager.list_scripts()
+            if not self.mute:
+                print('OK')
+            self.meta_manager.install_begin(self.version)
             scripts = self.select_scripts(passed=False)
             if self.dry_run:
-                print("SQL scripts to run:")
-                for script in self.select_scripts():
-                    print("- %s" % script)
+                if len(scripts):
+                    print("%s scripts to run:" % len(scripts))
+                    for script in scripts:
+                        print("- %s" % script)
+                else:
+                    print("No script to run")
             else:
                 nb_scripts = len(scripts)
                 if nb_scripts:
@@ -861,6 +848,8 @@ version     La version a installer (la version de l'archive par defaut)."""
                     sys.stdout.flush()
                 else:
                     print("No migration script to run")
+                    print('OK')
+                    return
                 script = self.migration_script(scripts, meta=True, version=self.version)
                 _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
                 with open(filename, 'w') as handle:
@@ -891,31 +880,31 @@ version     La version a installer (la version de l'archive par defaut)."""
             result += "-- Meta installation beginning\n"
             result += self.meta_manager.install_begin(version=version)
             result += '\n'
-            result += self.meta_manager.commit()
+            result += self.meta_manager.COMMIT;
             result += '\n\n'
         for script in scripts:
             if meta:
                 result += "-- Meta script beginning\n"
                 result += self.meta_manager.script_begin(script=script)
                 result += '\n'
-                result += self.meta_manager.commit()
+                result += self.meta_manager.COMMIT
                 result += '\n\n'
             result += "-- Script '%s'\n" % script
             result += open(os.path.join(self.sql_dir, script.name)).read().strip()
             result += '\n'
-            result += self.meta_manager.commit()
+            result += self.meta_manager.COMMIT
             result += '\n\n'
             if meta:
                 result += "-- Meta script ending\n"
                 result += self.meta_manager.script_done(script=script)
                 result += '\n'
-                result += self.meta_manager.commit()
+                result += self.meta_manager.COMMIT
                 result += '\n\n'
         if meta:
             result += "-- Meta installation ending\n"
             result += self.meta_manager.install_done(success=True)
             result += '\n'
-            result += self.meta_manager.commit()
+            result += self.meta_manager.COMMIT
             result += '\n\n'
         result += self.meta_manager.script_footer(self.db_config)
         return result
