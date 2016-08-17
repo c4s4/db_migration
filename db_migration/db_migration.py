@@ -652,13 +652,14 @@ class DBMigration(object):
         }
     }
     HELP = """python db_migration.py [-h] [-d] [-i] [-a] [-l] [-u] [-s sql_dir] [-c config]
-                       [-p fichier] [-m from] platform [version]
+                       [-p fichier] [-m from] [-k] platform [version]
 -h          Pour afficher cette page d'aide.
 -d          Affiche les scripts a installer mais ne les execute pas.
 -i          Initialisation de la base ATTENTION ! Efface toutes les donnees.
 -a          Pour installer les scripts de toutes les versions du repertoire.
 -l          Pour installer sur la base de donnees locale en mode test.
 -u          Pour ne rien afficher sur la console (si tout se passe bien).
+-k          Pour garder le script de migration généré (dans le répertoire '/tmp').
 -s sql_dir  Le répertoire où se trouvent les fichiers SQL (répertoire du script
             par défaut).
 -c config   Indique le fichier de configuration à utiliser (db_configuration.py
@@ -688,13 +689,14 @@ version     La version a installer (la version de l'archive par defaut)."""
         sql_dir = None
         configuration = None
         from_version = None
+        keep = False
         platform = None
         version = None
         try:
             opts, args = getopt.getopt(arguments,
-                                       "hdialus:c:p:m:",
+                                       "hdialus:c:p:m:k",
                                        ["help", "dry-run", "init", "all", "local", "mute",
-                                        "sql-dir=", "config=", "migration="])
+                                        "sql-dir=", "config=", "migration=", "keep"])
         except getopt.GetoptError as exception:
             raise AppException("%s\n%s" % (exception.message, DBMigration.HELP))
         for opt, arg in opts:
@@ -717,6 +719,8 @@ version     La version a installer (la version de l'archive par defaut)."""
                 configuration = arg
             elif opt in ("-m", "--migration"):
                 from_version = arg
+            elif opt in ("-k", "--keep"):
+                keep = True
             else:
                 raise AppException("Unhandled option: %s\n%s" % (opt, DBMigration.HELP))
         if len(args) == 0:
@@ -727,10 +731,10 @@ version     La version a installer (la version de l'archive par defaut)."""
         if len(args) > 2:
             raise AppException("Too many arguments on command line:\n%s" % DBMigration.HELP)
         return DBMigration(dry_run=dry_run, init=init, all_scripts=all_scripts, local=local, mute=mute,
-                           platform=platform, version=version, from_version=from_version,
+                           platform=platform, version=version, from_version=from_version, keep=keep,
                            sql_dir=sql_dir, configuration=configuration)
 
-    def __init__(self, dry_run, init, all_scripts, local, mute, platform, version, from_version, sql_dir, configuration):
+    def __init__(self, dry_run, init, all_scripts, local, mute, platform, version, from_version, keep, sql_dir, configuration):
         self.dry_run = dry_run
         self.init = init
         self.all_scripts = all_scripts
@@ -739,6 +743,7 @@ version     La version a installer (la version de l'archive par defaut)."""
         self.platform = platform
         self.version = version
         self.from_version = from_version
+        self.keep = keep
         self.sql_dir = sql_dir
         self.db_config = None
         self.meta_manager = None
@@ -843,6 +848,9 @@ version     La version a installer (la version de l'archive par defaut)."""
                     print("No script to run")
             else:
                 nb_scripts = len(scripts)
+                _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
+                if self.keep:
+                    print("Generated migration script in '%s'" % filename)
                 if nb_scripts:
                     print("Running %s migration scripts... " % len(scripts), end='')
                     sys.stdout.flush()
@@ -851,12 +859,12 @@ version     La version a installer (la version de l'archive par defaut)."""
                     print('OK')
                     return
                 script = self.migration_script(scripts, meta=True, version=self.version)
-                _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
                 with open(filename, 'w') as handle:
                     handle.write(script)
                 try:
                     self.meta_manager.run_script(script=filename)
-                    os.remove(filename)
+                    if not self.keep:
+                        os.remove(filename)
                     print('OK')
                 except Exception as e:
                     script = self.meta_manager.last_error()
