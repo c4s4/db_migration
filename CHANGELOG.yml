@@ -11,10 +11,10 @@
 
 - version: 2.6.0
   date:    2016-08-??
-  summary: ???
+  summary: Optimized the number of database connections
   added:
-  - "Getting list of passed scripts in a single query (roughly divides the
-     number of database queries by 2)."
+  - "Drop and create meta tables in a single query."
+  - "Getting the list of passed scripts in a single query."
   - "Running the whole migration in a single generated script."
 
 - version: 2.5.4
