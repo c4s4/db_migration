@@ -662,25 +662,23 @@ class DBMigration(object):
             'password': 'test',
         }
     }
-    HELP = """python db_migration.py [-h] [-d] [-i] [-a] [-l] [-u] [-s sql_dir] [-c config]
-                       [-p fichier] [-m from] [-k] platform [version]
--h          Pour afficher cette page d'aide.
--d          Affiche les scripts a installer mais ne les execute pas.
--i          Initialisation de la base ATTENTION ! Efface toutes les donnees.
--a          Pour installer les scripts de toutes les versions du repertoire.
--l          Pour installer sur la base de donnees locale en mode test.
--u          Pour ne rien afficher sur la console (si tout se passe bien).
+    HELP = """python db_migration.py [-h] [-d] [-i] [-a] [-l] [-u] [-k]
+            [-s sql_dir] [-c config] [-p fichier] [-m from] platform [version]
+-h          Print this help page.
+-d          Print the list of scripts to run, without running them.
+-i          Database initialization: run scripts in 'init' directory.
+            CAUTION! This will erase database!
+-a          To run all migration script (including those in 'next' directory).
+-l          To install on local database.
+-u          To print nothing on the console (except error messages).
 -k          Pour garder le script de migration généré (dans le répertoire '/tmp').
--s sql_dir  Le répertoire où se trouvent les fichiers SQL (répertoire du script
-            par défaut).
--c config   Indique le fichier de configuration à utiliser (db_configuration.py
-            dans le répertoire du script par défaut).
--m from     Ecrit le script de migration de la version 'from' vers 'version'
-            sur la console. La valeur 'init' indique que tous les scripts de
-            migration doivent être inclus.
-platform    La plate-forme sur laquelle on doit installer (les valeurs
-            possibles sont 'itg', 'prp' et 'prod'). La valeur par defaut est 'itg'.
-version     La version a installer (la version de l'archive par defaut)."""
+-s sql_dir  To specify the directory where live SQL migration scripts.
+-c config   To specify configuration file (default to 'db_configuration.py' in
+            current directory.
+-m from     To print migration script from 'from' to 'version' on the console.
+            'init' value indicates that we include initialization scripts.
+platform    The database platform as defined in configuration file.
+version     The version to install."""
 
     @staticmethod
     def run_command_line():
