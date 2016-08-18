@@ -876,6 +876,10 @@ version     The version to install."""
                         os.remove(filename)
                     print('OK')
                 except Exception as e:
+                    try:
+                        self.meta_manager.install_done(success=False)
+                    except Exception as e:
+                        pass
                     script = self.meta_manager.last_error()
                     print()
                     print('-'*80)
