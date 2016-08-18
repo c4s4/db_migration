@@ -225,7 +225,7 @@ class SqlplusCommando(object):
         output, _ = session.communicate(self.EXIT_COMMAND)
         code = session.returncode
         if code != 0:
-            raise SqlplusException(SqlplusErrorParser.parse(output), query)
+            raise SqlplusException(SqlplusErrorParser.parse(output), query, raised=True)
         else:
             if output:
                 result = SqlplusResultParser.parse(output, cast=cast, check_errors=check_errors)
@@ -310,7 +310,7 @@ class SqlplusResultParser(HTMLParser.HTMLParser):
             errors = re.findall(SqlplusResultParser.REGEXP_ERRORS, source,
                                 re.MULTILINE + re.IGNORECASE)
             if errors:
-                raise SqlplusException('\n'.join(errors))
+                raise SqlplusException('\n'.join(errors), raised=False)
         parser = SqlplusResultParser(cast)
         parser.feed(source)
         return tuple(parser.result)
@@ -385,9 +385,10 @@ class SqlplusErrorParser(HTMLParser.HTMLParser):
 # pylint: disable=W0231
 class SqlplusException(Exception):
 
-    def __init__(self, message, query=None):
+    def __init__(self, message, query=None, raised=False):
         self.message = message
         self.query = query
+        self.raised = raised
 
     def __str__(self):
         return self.message
@@ -435,6 +436,10 @@ class MetaManager(object):
     def script_done(self, script):
         parameters = {'script': script}
         return self.SQL_SCRIPT_DONE % parameters
+
+    def scripts_error(self):
+        self.database.run_query(self.install_done(success=False))
+        self.database.run_query(self.SQL_SCRIPTS_ERROR)
 
     def last_error(self):
         result = self.database.run_query(self.SQL_LAST_ERROR)
@@ -487,6 +492,10 @@ VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
     SQL_SCRIPT_DONE = """UPDATE _scripts
   SET success = 1
   ORDER BY id DESC LIMIT 1;"""
+    SQL_SCRIPTS_ERROR = """UPDATE _scripts
+    SET success = 0
+    WHERE install_id = (SELECT MAX(id) FROM _install);
+    """
     SQL_LAST_ERROR = """SELECT filename AS SCRIPT FROM _scripts
     WHERE success = 0
     ORDER BY id DESC LIMIT 1;"""
@@ -574,6 +583,10 @@ VALUES
     SQL_SCRIPT_DONE = """UPDATE SCRIPTS_
   SET SUCCESS = 1
   WHERE ID = (SELECT MAX(ID) FROM SCRIPTS_);"""
+    SQL_SCRIPTS_ERROR = """UPDATE SCRIPTS_
+    SET SUCCESS = 0
+    WHERE INSTALL_ID = (SELECT MAX(ID) FROM INSTALL_);
+    """
     SQL_LAST_ERROR = """SELECT FILENAME AS SCRIPT FROM (
       SELECT FILENAME FROM SCRIPTS_
       WHERE SUCCESS = 0 ORDER BY ID DESC
@@ -876,10 +889,10 @@ version     The version to install."""
                         os.remove(filename)
                     print('OK')
                 except Exception as e:
-                    try:
-                        self.meta_manager.install_done(success=False)
-                    except Exception as e:
-                        pass
+                    if hasattr(e, 'raised') and not e.raised:
+                        # the error was not raised while running scripts but was detected
+                        # in the output (thanks sqlplus error management)
+                        self.meta_manager.scripts_error()
                     script = self.meta_manager.last_error()
                     print()
                     print('-'*80)
