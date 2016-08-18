@@ -230,7 +230,7 @@ class TestDBMigration(unittest.TestCase):
 
     def test_migration_script_mysql(self):
         # nominal case
-        expected = """-- Migration base 'test' on platform 'itg'
+        expected = u"""-- Migration base 'test' on platform 'itg'
 -- From version '0.1' to '1.0'
 
 USE `test`;
@@ -240,7 +240,6 @@ INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
-COMMIT;
 
 COMMIT;
 """
@@ -249,25 +248,22 @@ COMMIT;
                                         '-m', '0.1', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # another nominal case
-        expected = """-- Migration base 'test' on platform 'itg'
+        expected = u"""-- Migration base 'test' on platform 'itg'
 -- From version '0' to '1.0'
 
 USE `test`;
 
 -- Script '0.1/all.sql'
 ALTER TABLE pet ADD tatoo VARCHAR(20);
-COMMIT;
 
 -- Script '0.1/itg.sql'
-UPDATE pet SET tatoo='2-GKB-951' WHERE NAME='R\xc3\xa9glisse';
-COMMIT;
+UPDATE pet SET tatoo='2-GKB-951' WHERE NAME='Réglisse';
 
 -- Script '1.0/all.sql'
 INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
-COMMIT;
 
 COMMIT;
 """
@@ -276,7 +272,7 @@ COMMIT;
                                         '-m', '0', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # nominal case from init
-        expected = '''-- Migration base 'test' on platform 'itg'
+        expected = u"""-- Migration base 'test' on platform 'itg'
 -- From version 'init' to '1.0'
 
 USE `test`;
@@ -291,34 +287,29 @@ CREATE TABLE pet (
   species VARCHAR(10) NOT NULL,
   PRIMARY KEY  (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-COMMIT;
 
 -- Script 'init/itg.sql'
 INSERT INTO pet
   (name, age, species)
 VALUES
-  ('R\xc3\xa9glisse', 14, 'dog'),
+  ('Réglisse', 14, 'dog'),
   ('Mignonne', 13, 'cat'),
-  ('Oph\xc3\xa9lie', 19, 'cat');
-COMMIT;
+  ('Ophélie', 19, 'cat');
 
 -- Script '0.1/all.sql'
 ALTER TABLE pet ADD tatoo VARCHAR(20);
-COMMIT;
 
 -- Script '0.1/itg.sql'
-UPDATE pet SET tatoo='2-GKB-951' WHERE NAME='R\xc3\xa9glisse';
-COMMIT;
+UPDATE pet SET tatoo='2-GKB-951' WHERE NAME='Réglisse';
 
 -- Script '1.0/all.sql'
 INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
-COMMIT;
 
 COMMIT;
-'''
+"""
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                         '-m', 'init', 'itg', '1.0'])
@@ -326,7 +317,7 @@ COMMIT;
 
     def test_migration_script_oracle(self):
         # nominal case
-        expected = """-- Migration base 'orcl' on platform 'itg'
+        expected = u"""-- Migration base 'orcl' on platform 'itg'
 -- From version '0.1' to '1.0'
 
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
@@ -334,7 +325,6 @@ WHENEVER OSERROR EXIT 9;
 
 -- Script '1.0/all.sql'
 INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
-COMMIT;
 
 COMMIT;
 """
@@ -343,7 +333,7 @@ COMMIT;
                                         '-m', '0.1', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # another nominal case
-        expected = """-- Migration base 'orcl' on platform 'itg'
+        expected = u"""-- Migration base 'orcl' on platform 'itg'
 -- From version '0' to '1.0'
 
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
@@ -351,15 +341,12 @@ WHENEVER OSERROR EXIT 9;
 
 -- Script '0.1/all.sql'
 ALTER TABLE PET ADD TATOO VARCHAR(20);
-COMMIT;
 
 -- Script '0.1/itg.sql'
-UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='R\xc3\xa9glisse';
-COMMIT;
+UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='Réglisse';
 
 -- Script '1.0/all.sql'
 INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
-COMMIT;
 
 COMMIT;
 """
@@ -368,31 +355,31 @@ COMMIT;
                                         '-m', '0', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # nominal case from init
-        expected = """-- Migration base \'orcl\' on platform \'itg\'
--- From version \'init\' to \'1.0\'
+        expected = u"""-- Migration base 'orcl' on platform 'itg'
+-- From version 'init' to '1.0'
 
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
 WHENEVER OSERROR EXIT 9;
 
--- Script \'init/all.sql\'
+-- Script 'init/all.sql'
 -- clean schema
 BEGIN
   FOR cur_rec IN (SELECT object_name, object_type
                   FROM   user_objects
-                  WHERE  object_type IN (\'TABLE\', \'VIEW\', \'PACKAGE\', \'PROCEDURE\', \'FUNCTION\', \'SEQUENCE\')) LOOP
+                  WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
     BEGIN
-      IF cur_rec.object_name = \'INSTALL_\' OR cur_rec.object_name = \'SCRIPTS_\' OR
-         cur_rec.object_name = \'INSTALL_SEQUENCE\' THEN
+      IF cur_rec.object_name = 'INSTALL_' OR cur_rec.object_name = 'SCRIPTS_' OR
+         cur_rec.object_name = 'INSTALL_SEQUENCE' THEN
         CONTINUE;
       end IF;
-      IF cur_rec.object_type = \'TABLE\' THEN
-        EXECUTE IMMEDIATE \'DROP \' || cur_rec.object_type || \' "\' || cur_rec.object_name || \'" CASCADE CONSTRAINTS\';
+      IF cur_rec.object_type = 'TABLE' THEN
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
       ELSE
-        EXECUTE IMMEDIATE \'DROP \' || cur_rec.object_type || \' "\' || cur_rec.object_name || \'"\';
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"';
       END IF;
     EXCEPTION
       WHEN OTHERS THEN
-        DBMS_OUTPUT.put_line(\'FAILED: DROP \' || cur_rec.object_type || \' "\' || cur_rec.object_name || \'"\');
+        DBMS_OUTPUT.put_line('FAILED: DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"');
     END;
   END LOOP;
 END;
@@ -409,25 +396,20 @@ CREATE SEQUENCE PET_SEQUENCE
   START WITH 1
   INCREMENT BY 1
   CACHE 100;
-COMMIT;
 
--- Script \'init/itg.sql\'
-INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, \'R\xc3\xa9glisse\', 14, \'dog\');
-INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, \'Mignonne\', 13, \'cat\');
-INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, \'Oph\xc3\xa9lie\', 19, \'cat\');
-COMMIT;
+-- Script 'init/itg.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Réglisse', 14, 'dog');
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Mignonne', 13, 'cat');
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Ophélie', 19, 'cat');
 
--- Script \'0.1/all.sql\'
+-- Script '0.1/all.sql'
 ALTER TABLE PET ADD TATOO VARCHAR(20);
-COMMIT;
 
--- Script \'0.1/itg.sql\'
-UPDATE PET SET TATOO=\'2-GKB-951\' WHERE NAME=\'R\xc3\xa9glisse\';
-COMMIT;
+-- Script '0.1/itg.sql'
+UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='Réglisse';
 
--- Script \'1.0/all.sql\'
-INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, \'Nico\', 7, \'beaver\');
-COMMIT;
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
 
 COMMIT;
 """
