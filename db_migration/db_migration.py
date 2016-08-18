@@ -9,6 +9,7 @@ import sys
 import glob
 import math
 import getopt
+import codecs
 import getpass
 import tempfile
 import datetime
@@ -868,8 +869,13 @@ version     The version to install."""
                     print('OK')
                     return
                 script = self.migration_script(scripts, meta=True, version=self.version)
-                with open(filename, 'w') as handle:
-                    handle.write(script)
+                if self.config.ENCODING:
+                    with codecs.open(filename, 'w', encoding=self.config.ENCODING,
+                                     errors='strict') as handle:
+                        handle.write(script)
+                else:
+                    with open(filename, 'w') as handle:
+                        handle.write(script)
                 try:
                     self.meta_manager.run_script(script=filename)
                     if not self.keep:
@@ -907,7 +913,7 @@ version     The version to install."""
                 result += self.meta_manager.COMMIT
                 result += '\n\n'
             result += "-- Script '%s'\n" % script
-            result += open(os.path.join(self.sql_dir, script.name)).read().strip()
+            result += self.read_script(script.name)
             if meta:
                 result += '\n'
                 result += self.meta_manager.COMMIT
@@ -963,6 +969,14 @@ version     The version to install."""
     ###########################################################################
     #                              UTILITY METHODS                            #
     ###########################################################################
+
+    def read_script(self, name):
+        filename = os.path.join(self.sql_dir, name)
+        if self.config.ENCODING:
+            return codecs.open(filename, mode='r', encoding=self.config.ENCODING,
+                               errors='strict').read().strip()
+        else:
+            return open(filename).read().strip()
 
     @staticmethod
     def execute(command):
