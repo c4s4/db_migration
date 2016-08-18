@@ -869,13 +869,7 @@ version     The version to install."""
                     print('OK')
                     return
                 script = self.migration_script(scripts, meta=True, version=self.version)
-                if self.config.ENCODING:
-                    with codecs.open(filename, 'w', encoding=self.config.ENCODING,
-                                     errors='strict') as handle:
-                        handle.write(script)
-                else:
-                    with open(filename, 'w') as handle:
-                        handle.write(script)
+                self.write_script(script, filename)
                 try:
                     self.meta_manager.run_script(script=filename)
                     if not self.keep:
@@ -977,6 +971,15 @@ version     The version to install."""
                                errors='strict').read().strip()
         else:
             return open(filename).read().strip()
+
+    def write_script(self, script, filename):
+        if self.config.ENCODING:
+            with codecs.open(filename, mode='w', encoding=self.config.ENCODING,
+                             errors='strict') as handle:
+                handle.write(script)
+        else:
+            with open(filename, 'w') as handle:
+                handle.write(script)
 
     @staticmethod
     def execute(command):
