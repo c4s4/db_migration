@@ -17,6 +17,10 @@ import subprocess
 import HTMLParser
 
 
+###############################################################################
+#                                MYSQL DRIVER                                 #
+###############################################################################
+
 #pylint: disable=E1103
 class MysqlCommando(object):
 
@@ -183,6 +187,10 @@ class MysqlException(Exception):
     def __str__(self):
         return self.message#pylint: disable=E1103
 
+
+###############################################################################
+#                               ORACLE DRIVER                                 #
+###############################################################################
 
 class SqlplusCommando(object):
 
@@ -394,6 +402,10 @@ class SqlplusException(Exception):
         return self.message
 
 
+###############################################################################
+#                               META MANAGERS                                 #
+###############################################################################
+
 class MetaManager(object):
 
     COMMIT = 'COMMIT;'
@@ -599,6 +611,10 @@ VALUES
         return "COMMIT;"
 
 
+###############################################################################
+#                              MIGRATION SCRIPT                               #
+###############################################################################
+
 class AppException(Exception):
 
     pass
@@ -693,6 +709,10 @@ class DBMigration(object):
             'init' value indicates that we include initialization scripts.
 platform    The database platform as defined in configuration file.
 version     The version to install."""
+
+    ###########################################################################
+    #                           COMMAND LINE PARSING                          #
+    ###########################################################################
 
     @staticmethod
     def run_command_line():
