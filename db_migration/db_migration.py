@@ -185,7 +185,7 @@ class MysqlException(Exception):
         self.query = query
 
     def __str__(self):
-        return self.message#pylint: disable=E1103
+        return self.message  # pylint: disable=E1103
 
 
 ###############################################################################
