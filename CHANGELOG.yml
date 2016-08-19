@@ -16,6 +16,7 @@
   - "Drop and create meta tables in a single query."
   - "Getting the list of passed scripts in a single query."
   - "Running the whole migration in a single generated script."
+  - "Help screen in english."
 
 - version: 2.5.4
   date:    2016-08-01
