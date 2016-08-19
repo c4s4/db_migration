@@ -845,66 +845,75 @@ version     The version to install."""
     def run(self):
         if self.from_version:
             scripts = self.select_scripts(passed=True)
-            print(self.migration_script(scripts=scripts, meta=False))
+            print(self.generate_migration_script(scripts=scripts, meta=False))
         else:
-            if not self.mute:
-                print("Version '%s' on platform '%s'" % (self.version, self.db_config['hostname']))
-                print("Using base '%(database)s' as user '%(username)s'" % self.db_config)
-                print("Creating meta tables... ", end='')
-                sys.stdout.flush()
-            self.meta_manager.meta_create(self.init)
-            if not self.mute:
-                print('OK')
-            if not self.mute:
-                print("Listing passed scripts... ", end='')
-            self.meta_manager.list_scripts()
-            if not self.mute:
-                print('OK')
-            self.meta_manager.install_begin(self.version)
-            scripts = self.select_scripts(passed=False)
+            scripts = self.prepare_run()
             if self.dry_run:
-                if len(scripts):
-                    print("%s scripts to run:" % len(scripts))
-                    for script in scripts:
-                        print("- %s" % script)
-                else:
-                    print("No script to run")
+                self.run_dry(scripts)
             else:
                 nb_scripts = len(scripts)
-                _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
-                if self.keep:
-                    print("Generated migration script in '%s'" % filename)
-                if nb_scripts:
-                    print("Running %s migration scripts... " % len(scripts), end='')
-                    sys.stdout.flush()
-                else:
+                if nb_scripts == 0:
                     print("No migration script to run")
                     print('OK')
-                    return
-                script = self.migration_script(scripts, meta=True, version=self.version)
-                self.write_script(script, filename)
-                try:
-                    self.meta_manager.run_script(script=filename)
-                    if not self.keep:
-                        os.remove(filename)
-                    print('OK')
-                except Exception as e:
-                    if hasattr(e, 'raised') and not e.raised:
-                        # the error was not raised while running scripts but was detected
-                        # in the output (thanks sqlplus error management)
-                        self.meta_manager.scripts_error()
-                    script = self.meta_manager.last_error()
-                    print()
-                    print('-'*80)
-                    if script:
-                        print("Error running script '%s' in file '%s':" % (script, filename))
-                    else:
-                        print("Error in file '%s':" % filename)
-                    print(e)
-                    print('-'*80)
-                    raise AppException("ERROR")
+                else:
+                    self.perform_run(scripts)
 
-    def migration_script(self, scripts, meta=True, version=None):
+    def prepare_run(self):
+        if not self.mute:
+            print("Version '%s' on platform '%s'" % (self.version, self.db_config['hostname']))
+            print("Using base '%(database)s' as user '%(username)s'" % self.db_config)
+            print("Creating meta tables... ", end='')
+            sys.stdout.flush()
+        self.meta_manager.meta_create(self.init)
+        if not self.mute:
+            print('OK')
+        if not self.mute:
+            print("Listing passed scripts... ", end='')
+        self.meta_manager.list_scripts()
+        if not self.mute:
+            print('OK')
+        self.meta_manager.install_begin(self.version)
+        scripts = self.select_scripts(passed=False)
+        return scripts
+
+    def perform_run(self, scripts):
+        print("Running %s migration scripts... " % len(scripts), end='')
+        sys.stdout.flush()
+        _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
+        if self.keep:
+            print("Generated migration script in '%s'" % filename)
+        script = self.generate_migration_script(scripts, meta=True, version=self.version)
+        self.write_script(script, filename)
+        try:
+            self.meta_manager.run_script(script=filename)
+            if not self.keep:
+                os.remove(filename)
+            print('OK')
+        except Exception as e:
+            if hasattr(e, 'raised') and not e.raised:
+                # the error was not raised while running scripts but was detected
+                # in the output (thanks sqlplus error management)
+                self.meta_manager.scripts_error()
+            script = self.meta_manager.last_error()
+            print()
+            print('-' * 80)
+            if script:
+                print("Error running script '%s' in file '%s':" % (script, filename))
+            else:
+                print("Error in file '%s':" % filename)
+            print(e)
+            print('-' * 80)
+            raise AppException("ERROR")
+
+    def run_dry(self, scripts):
+        if len(scripts):
+            print("%s scripts to run:" % len(scripts))
+            for script in scripts:
+                print("- %s" % script)
+        else:
+            print("No script to run")
+
+    def generate_migration_script(self, scripts, meta=True, version=None):
         result = ''
         result += "-- Migration base '%s' on platform '%s'\n" % (self.db_config['database'], self.platform)
         result += "-- From version '%s' to '%s'\n\n" % (self.from_version, self.version)
