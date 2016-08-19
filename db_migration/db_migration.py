@@ -390,6 +390,7 @@ class SqlplusErrorParser(HTMLParser.HTMLParser):
         if self.active:
             self.message += data
 
+
 # pylint: disable=W0231
 class SqlplusException(Exception):
 
@@ -406,27 +407,51 @@ class SqlplusException(Exception):
 
 
 ###############################################################################
-#                               META MANAGERS                                 #
+#                             DATABASE ADAPTERS                               #
 ###############################################################################
 
-class MetaManager(object):
+class DatabaseAdapter(object):
+    """
+    Parent class for all database adapters. Each given database must provide
+    its own adapter to be accessed in an unified way by the migration script.
+    """
 
+    # SQL command to commit
     COMMIT = 'COMMIT;'
 
     def __init__(self, database):
+        """
+        Constructor with database connexion.
+        :param database: the database connexion
+        """
         self.database = database
         self.install_id = None
         self.installed_scripts = None
 
     def run_script(self, script, cast=None):
+        """
+        Run a given script.
+        :param script: the path of the script to run
+        :param cast: tells if we should cast result
+        :return: the result of the script
+        """
         return self.database.run_script(script=script, cast=cast)
 
     def meta_create(self, init):
+        """
+        Called to create meta tables.
+        :param init: tells if we should initialize database (and thus erase all
+                     schemas an data)
+        """
         if init:
             self.database.run_query(query=self.SQL_DROP_META)
         self.database.run_query(query=self.SQL_CREATE_META)
 
     def list_scripts(self):
+        """
+        List all successfuly passed scripts on database.
+        :return: the list of passed scripts
+        """
         result = self.database.run_query(query=self.SQL_LIST_SCRIPTS)
         if result:
             self.installed_scripts = [l['SCRIPT'] for l in result]
@@ -434,29 +459,63 @@ class MetaManager(object):
             self.installed_scripts = []
 
     def script_passed(self, script):
+        """
+        Tells if a given script was successfuly passed on database.
+        :param script: the script to test
+        :return: true is the script was successfuly passed else false
+        """
         return script in self.installed_scripts
 
     def install_begin(self, version):
+        """
+        Generate the SQL query to run when a migration begins.
+        :param version: the target migration version
+        :return: generated SQL query
+        """
         parameters = {'version': version}
         return self.SQL_INSTALL_BEGIN % parameters
 
     def install_done(self, success):
+        """
+        Generate the SQL query to run when a migration is done.
+        :param success: tells if migration was sucessful
+        :return: generated query
+        """
         parameters = {'success': 1 if success else 0}
         return self.SQL_INSTALL_DONE % parameters
 
     def script_begin(self, script):
+        """
+        Generate query to run before running a given script.
+        :param script: the script that will run
+        :return: generated query
+        """
         parameters = {'script': script}
         return self.SQL_SCRIPT_BEGIN % parameters
 
     def script_done(self, script):
+        """
+        Generate query to run after given script was run.
+        :param script: the script that will run
+        :return: generated script
+        """
         parameters = {'script': script}
         return self.SQL_SCRIPT_DONE % parameters
 
     def scripts_error(self):
+        """
+        Called when we mus invalidate all scripts in current migration
+        (because an error was detected in output but sqlplus exits with
+        code 0).
+        """
         self.database.run_query(self.install_done(success=False))
         self.database.run_query(self.SQL_SCRIPTS_ERROR)
 
     def last_error(self):
+        """
+        Result last script on error.
+        :return: the name of the script that failed
+        """
         result = self.database.run_query(self.SQL_LAST_ERROR)
         if result:
             return result[0]['SCRIPT']
@@ -464,7 +523,10 @@ class MetaManager(object):
             return None
 
 
-class MysqlMetaManager(MetaManager):
+class MysqlDatabaseAdapter(DatabaseAdapter):
+    """
+    Adapter for MySQL.
+    """
 
     SQL_DROP_META = """
     DROP TABLE IF EXISTS _scripts;
@@ -522,7 +584,10 @@ VALUES ('%(script)s', now(), 0, (SELECT max(id) FROM _install), NULL);"""
         return "COMMIT;"
 
 
-class SqlplusMetaManager(MetaManager):
+class SqlplusDatabaseAdapter(DatabaseAdapter):
+    """
+    Adapter for MySQL.
+    """
 
     SQL_DROP_META = """
     DECLARE nb NUMBER(10);
@@ -619,20 +684,39 @@ VALUES
 ###############################################################################
 
 class AppException(Exception):
+    """
+    Exception thrown to interrupt execution without printing a stack trace.
+    Instead the message of the exception is printed on the terminal.
+    """
 
     pass
 
 
 class Config(object):
+    """
+    A configuration which is built from named parameters and which fields can
+    be accessed as object fields.
+    """
 
     def __init__(self, **fields):
+        """
+        Constructor that takes named parameters.
+        :param fields: named parameters
+        """
         self.__dict__.update(fields)
 
     def __repr__(self):
+        """
+        Representation as Python code.
+        :return: representation as a dictionnary python source code
+        """
         return repr(self.__dict__)
 
 
 class Script(object):
+    """
+    Script meta information extracted from its path.
+    """
 
     INFINITE = math.inf if hasattr(math, 'inf') else float('inf')
     VERSION_INIT = [-1]
@@ -641,6 +725,10 @@ class Script(object):
     PLATFORM_ALL = 'all'
 
     def __init__(self, path):
+        """
+        Constructor that take the path of the script.
+        :param path: the path of the script that include version directory
+        """
         self.path = path
         self.platform = os.path.basename(path)
         if '.' in self.platform:
@@ -656,14 +744,28 @@ class Script(object):
         self.name = v + os.path.sep + os.path.basename(path)
 
     def sort_key(self):
+        """
+        Build a sort key for the script.
+        :return: the key made of version, platform and name
+        """
         platform_key = 0 if self.platform == self.PLATFORM_ALL else 1
         return self.version, platform_key, os.path.basename(self.name)
 
     def __str__(self):
+        """
+        String representation of the script.
+        :return: the string representing the script
+        """
         return self.name
 
     @staticmethod
     def split_version(version, from_version=False):
+        """
+        Split script version into a list of integers
+        :param version: the version as a string
+        :param from_version: the origin version
+        :return: version as a list of integers
+        """
         if version == 'init':
             if from_version:
                 return Script.VERSION_NULL
@@ -678,6 +780,10 @@ class Script(object):
 
 
 class DBMigration(object):
+    """
+    The database migration script. It is abtracted from database with database
+    adapters.
+    """
 
     VERSION_FILE = 'VERSION'
     SNAPSHOT_POSTFIX = '-SNAPSHOT'
@@ -719,6 +825,10 @@ version     The version to install."""
 
     @staticmethod
     def run_command_line():
+        """
+        Called while running from command line. It traps AppException to print
+        their message on console and exit in error.
+        """
         try:
             DBMigration.parse_command_line(sys.argv[1:]).run()
         except AppException as e:
@@ -727,6 +837,11 @@ version     The version to install."""
 
     @staticmethod
     def parse_command_line(arguments):
+        """
+        Parse options on command line.
+        :param arguments: the command line arguments
+        :return: built DBMigration object, ready to run
+        """
         dry_run = False
         init = False
         all_scripts = False
@@ -781,6 +896,20 @@ version     The version to install."""
                            sql_dir=sql_dir, configuration=configuration)
 
     def __init__(self, dry_run, init, all_scripts, local, mute, platform, version, from_version, keep, sql_dir, configuration):
+        """
+        Constructor with all command line options processed
+        :param dry_run:
+        :param init:
+        :param all_scripts:
+        :param local:
+        :param mute:
+        :param platform:
+        :param version:
+        :param from_version:
+        :param keep:
+        :param sql_dir:
+        :param configuration:
+        """
         self.dry_run = dry_run
         self.init = init
         self.all_scripts = all_scripts
@@ -805,6 +934,11 @@ version     The version to install."""
 
     @staticmethod
     def load_configuration(configuration):
+        """
+        Load configuration from file.
+        :param configuration: the configuration path
+        :return: built Config object
+        """
         if not configuration:
             configuration = os.path.join(os.path.dirname(__file__), 'db_configuration.py')
         if not os.path.isfile(configuration):
@@ -814,6 +948,10 @@ version     The version to install."""
         return Config(**config)
 
     def check_options(self):
+        """
+        Check command line options. If an option is invalid, an AppException is
+        raised with an explanatory message.
+        """
         if self.version and self.all_scripts:
             raise AppException("You can't give a version with -a option")
         if self.platform not in self.config.PLATFORMS:
@@ -824,6 +962,9 @@ version     The version to install."""
             raise AppException("You can't initialize critical platforms (%s)" % ' and '.join(sorted(self.config.CRITICAL_PLATFORMS)))
 
     def initialize(self):
+        """
+        Initialize the script with configuration.
+        """
         # set database configuration in db_config
         self.db_config = self.config.CONFIGURATION[self.platform]
         if self.local:
@@ -835,10 +976,10 @@ version     The version to install."""
             self.db_config['password'] = getpass.getpass("Database password for user '%s': " % self.db_config['username'])
         if self.config.DATABASE == 'mysql':
             mysql = MysqlCommando(configuration=self.db_config, encoding=self.config.ENCODING)
-            self.meta_manager = MysqlMetaManager(mysql)
+            self.meta_manager = MysqlDatabaseAdapter(mysql)
         elif self.config.DATABASE == 'oracle':
             sqlplus = SqlplusCommando(configuration=self.db_config, encoding=self.config.ENCODING)
-            self.meta_manager = SqlplusMetaManager(sqlplus)
+            self.meta_manager = SqlplusDatabaseAdapter(sqlplus)
         else:
             raise AppException("DATABASE must be 'mysql' or 'oracle'")
         # set default SQL directory
@@ -866,6 +1007,9 @@ version     The version to install."""
     ###########################################################################
 
     def run(self):
+        """
+        Run the migration.
+        """
         if self.from_version:
             scripts = self.select_scripts(passed=True)
             print(self.generate_migration_script(scripts=scripts, meta=False))
@@ -882,6 +1026,12 @@ version     The version to install."""
                     self.perform_run(scripts)
 
     def prepare_run(self):
+        """
+        Prepare migration creating meta tables, getting list of installed
+        scripts, notify database that migration was started and return the
+        list of scripts to pass to perform migration.
+        :return: the list of scripts to run to perform migration
+        """
         if not self.mute:
             print("Version '%s' on platform '%s'" % (self.version, self.db_config['hostname']))
             print("Using base '%(database)s' as user '%(username)s'" % self.db_config)
@@ -900,6 +1050,11 @@ version     The version to install."""
         return scripts
 
     def perform_run(self, scripts):
+        """
+        Perform a real migration: generate the migration script, run it and
+        manage error if any.
+        :param scripts: the list of scripts to run to perform migration
+        """
         print("Running %s migration scripts... " % len(scripts), end='')
         sys.stdout.flush()
         _, filename = tempfile.mkstemp(suffix='.sql', prefix='db_migration_')
@@ -929,6 +1084,10 @@ version     The version to install."""
             raise AppException("ERROR")
 
     def run_dry(self, scripts):
+        """
+        Dry run: print the list of scripts to run to perform migration.
+        :param scripts: the list of scripts to run to perform migration
+        """
         if len(scripts):
             print("%s scripts to run:" % len(scripts))
             for script in scripts:
@@ -937,6 +1096,13 @@ version     The version to install."""
             print("No script to run")
 
     def generate_migration_script(self, scripts, meta=True, version=None):
+        """
+        Generate migration script from the list of scripts.
+        :param scripts: the list fo scripts to run
+        :param meta: tells if we should send information to database about migration
+        :param version: the version we migrate to
+        :return: the migration script
+        """
         result = ''
         result += "-- Migration base '%s' on platform '%s'\n" % (self.db_config['database'], self.platform)
         result += "-- From version '%s' to '%s'\n\n" % (self.from_version, self.version)
@@ -981,6 +1147,11 @@ version     The version to install."""
     ###########################################################################
 
     def select_scripts(self, passed=False):
+        """
+        Generate the list of script to run to perform the migration.
+        :param passed: tells if we should skip passed scripts
+        :return: the list of scripts to run as a list of Script objects
+        """
         scripts = self.get_scripts()
         scripts = self.filter_by_platform(scripts)
         scripts = self.filter_by_version(scripts)
@@ -989,24 +1160,48 @@ version     The version to install."""
         return self.sort_scripts(scripts)
 
     def get_scripts(self):
+        """
+        Generate the list of all scripts in directory.
+        :return: the raw list of scripts
+        """
         file_list = glob.glob(os.path.join(self.sql_dir, self.SCRIPTS_GLOB))
         return [Script(f) for f in file_list]
 
     def filter_by_platform(self, scripts):
+        """
+        Filter the list of scripts by platform.
+        :param scripts: the raw list of scripts
+        :return: filtered list of scripts by platform
+        """
         return [s for s in scripts if
                 s.platform == Script.PLATFORM_ALL or s.platform == self.platform]
 
     def filter_by_version(self, scripts):
+        """
+        Filter the list of scripts by version.
+        :param scripts: the raw list of scripts
+        :return: filtered list of scripts by version
+        """
         from_version = self.from_version_array if self.from_version else Script.VERSION_NULL
         to_version = self.version_array if not self.all_scripts else Script.VERSION_NEXT
         return [s for s in scripts if from_version < s.version <= to_version]
 
     def filter_passed(self, scripts):
+        """
+        Filter the list of scripts if they were already passed.
+        :param scripts: the ra list of scripts to filter
+        :return: filtered list of scripts
+        """
         return [s for s in scripts if
                 self.init or not self.meta_manager.script_passed(s.name)]
 
     @staticmethod
     def sort_scripts(scripts):
+        """
+        Sort the list of scripts.
+        :param scripts: unsorted list of scripts
+        :return: sorted list of scripts
+        """
         return sorted(scripts, key=lambda s: s.sort_key())
 
     ###########################################################################
@@ -1014,6 +1209,11 @@ version     The version to install."""
     ###########################################################################
 
     def read_script(self, name):
+        """
+        Read a given script, managing encoding.
+        :param name: the name of the script
+        :return: loaded script as a string
+        """
         filename = os.path.join(self.sql_dir, name)
         if self.config.ENCODING:
             return codecs.open(filename, mode='r', encoding=self.config.ENCODING,
@@ -1022,6 +1222,11 @@ version     The version to install."""
             return open(filename).read().strip()
 
     def write_script(self, script, filename):
+        """
+        Write a given script, managing encoding.
+        :param script: the source of the script as a string
+        :param filename: the file name of the script
+        """
         if self.config.ENCODING:
             with codecs.open(filename, mode='w', encoding=self.config.ENCODING,
                              errors='strict') as handle:
@@ -1032,6 +1237,10 @@ version     The version to install."""
 
     @staticmethod
     def execute(command):
+        """
+        Execute a given command.
+        :param command: the command to execute
+        """
         result = os.system(command)
         if result != 0:
             raise AppException("Error running command '%s'" % command)
