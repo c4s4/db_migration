@@ -1227,7 +1227,11 @@ version     The version to install."""
         """
         if self.from_version:
             scripts = self.select_scripts(passed=True)
-            print(self.generate_migration_script(scripts=scripts, meta=False))
+            script = self.generate_migration_script(scripts=scripts, meta=False)
+            if self.config.ENCODING:
+                print(script.encode(self.config.ENCODING))
+            else:
+                print(script)
         else:
             scripts = self.prepare_run()
             if self.dry_run:
