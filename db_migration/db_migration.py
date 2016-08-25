@@ -996,7 +996,7 @@ class Script(object):
 
 class DBMigration(object):
     """
-    The database migration script. It is abtracted from database with database
+    The database migration script. It is abstracted from database with database
     adapters.
     """
 
