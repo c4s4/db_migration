@@ -1228,10 +1228,7 @@ version     The version to install."""
         if self.from_version:
             scripts = self.select_scripts(passed=True)
             script = self.generate_migration_script(scripts=scripts, meta=False)
-            if self.config.ENCODING:
-                print(script.encode(self.config.ENCODING))
-            else:
-                print(script)
+            self.print_script(script)
         else:
             scripts = self.prepare_run()
             if self.dry_run:
@@ -1453,6 +1450,16 @@ version     The version to install."""
         else:
             with open(filename, 'w') as handle:
                 handle.write(script)
+
+    def print_script(self, script):
+        """
+        Print a script on the console.
+        :param script: the script to print
+        """
+        if self.config.ENCODING:
+            print(script.encode(self.config.ENCODING))
+        else:
+            print(script)
 
     @staticmethod
     def execute(command):

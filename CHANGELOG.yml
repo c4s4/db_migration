@@ -17,6 +17,8 @@
   - "Getting the list of passed scripts in a single query."
   - "Running the whole migration in a single generated script."
   - "Help screen in english."
+  fixed:
+  - "Fixed encoding while printing migration script on console."
 
 - version: 2.5.4
   date:    2016-08-01

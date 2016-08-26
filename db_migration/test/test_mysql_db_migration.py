@@ -230,7 +230,7 @@ class TestDBMigration(unittest.TestCase):
 
     def test_migration_script_mysql(self):
         # nominal case
-        expected = u"""-- Migration base 'test' on platform 'itg'
+        expected = """-- Migration base 'test' on platform 'itg'
 -- From version '0.1' to '1.0'
 
 USE `test`;
@@ -248,7 +248,7 @@ COMMIT;
                                         '-m', '0.1', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # another nominal case
-        expected = u"""-- Migration base 'test' on platform 'itg'
+        expected = """-- Migration base 'test' on platform 'itg'
 -- From version '0' to '1.0'
 
 USE `test`;
@@ -272,7 +272,7 @@ COMMIT;
                                         '-m', '0', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # nominal case from init
-        expected = u"""-- Migration base 'test' on platform 'itg'
+        expected = """-- Migration base 'test' on platform 'itg'
 -- From version 'init' to '1.0'
 
 USE `test`;
@@ -317,7 +317,7 @@ COMMIT;
 
     def test_migration_script_oracle(self):
         # nominal case
-        expected = u"""-- Migration base 'orcl' on platform 'itg'
+        expected = """-- Migration base 'orcl' on platform 'itg'
 -- From version '0.1' to '1.0'
 
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
@@ -333,7 +333,7 @@ COMMIT;
                                         '-m', '0.1', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # another nominal case
-        expected = u"""-- Migration base 'orcl' on platform 'itg'
+        expected = """-- Migration base 'orcl' on platform 'itg'
 -- From version '0' to '1.0'
 
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
@@ -355,7 +355,7 @@ COMMIT;
                                         '-m', '0', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # nominal case from init
-        expected = u"""-- Migration base 'orcl' on platform 'itg'
+        expected = """-- Migration base 'orcl' on platform 'itg'
 -- From version 'init' to '1.0'
 
 WHENEVER SQLERROR EXIT SQL.SQLCODE;
