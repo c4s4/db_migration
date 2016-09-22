@@ -17,6 +17,7 @@
   - "Getting the list of passed scripts in a single query."
   - "Running the whole migration in a single generated script."
   - "Help screen in english."
+  - "Added 'done' directory management (always run after all others scripts)."
   fixed:
   - "Fixed encoding while printing migration script on console."
 

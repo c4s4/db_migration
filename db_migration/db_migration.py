@@ -936,6 +936,7 @@ class Script(object):
     INFINITE = math.inf if hasattr(math, 'inf') else float('inf')
     VERSION_INIT = [-1]
     VERSION_NEXT = [INFINITE]
+    VERSION_DONE = [INFINITE, INFINITE]
     VERSION_NULL = []
     PLATFORM_ALL = 'all'
 
@@ -988,6 +989,8 @@ class Script(object):
                 return Script.VERSION_INIT
         elif version == 'next':
             return Script.VERSION_NEXT
+        elif version == 'done':
+            return Script.VERSION_DONE
         elif re.match('\\d+(\\.\\d+)*', version):
             return [int(i) for i in version.split('.')]
         else:
@@ -1400,7 +1403,9 @@ version     The version to install."""
         """
         from_version = self.from_version_array if self.from_version else Script.VERSION_NULL
         to_version = self.version_array if not self.all_scripts else Script.VERSION_NEXT
-        return [s for s in scripts if from_version < s.version <= to_version]
+        return [s for s in scripts
+                if from_version < s.version <= to_version
+                or s.version == Script.VERSION_DONE]
 
     def filter_passed(self, scripts):
         """
@@ -1408,8 +1413,10 @@ version     The version to install."""
         :param scripts: the ra list of scripts to filter
         :return: filtered list of scripts
         """
-        return [s for s in scripts if
-                self.init or not self.meta_manager.script_passed(s.name)]
+        return [s for s in scripts
+                if self.init
+                or s.version == Script.VERSION_DONE
+                or not self.meta_manager.script_passed(s.name)]
 
     @staticmethod
     def sort_scripts(scripts):

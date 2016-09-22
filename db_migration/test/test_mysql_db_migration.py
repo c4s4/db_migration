@@ -127,9 +127,10 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'wombat', 'tatoo': None,        'age':  7, 'id': 4, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -150,9 +151,11 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'wombat', 'age': 7,  'id': 4, 'name': 'Robert'},
+
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -174,9 +177,10 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': None, 'age': 6,  'id': 1, 'name': 'Milou'},
-            {'species': 'dog', 'tatoo': None, 'age': 11, 'id': 2, 'name': 'Médor'},
-            {'species': 'cat', 'tatoo': None, 'age': 10, 'id': 3, 'name': 'Félix'},
+            {'species': 'dog',    'tatoo': None, 'age': 6,  'id': 1, 'name': 'Milou'},
+            {'species': 'dog',    'tatoo': None, 'age': 11, 'id': 2, 'name': 'Médor'},
+            {'species': 'cat',    'tatoo': None, 'age': 10, 'id': 3, 'name': 'Félix'},
+            {'species': 'wombat', 'tatoo': None, 'age':  7, 'id': 4, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -198,9 +202,10 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'wombat', 'age':  7, 'id': 4, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
         # migrate database to version 1.0
@@ -224,7 +229,9 @@ class TestDBMigration(unittest.TestCase):
             {'species': 'dog',    'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
             {'species': 'cat',    'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
             {'species': 'cat',    'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
-            {'species': 'beaver', 'tatoo': None,        'age': 7, 'id': 4, 'name': 'Nico'},
+            {'species': 'wombat', 'tatoo': None,        'age':  7, 'id': 4, 'name': 'Robert'},
+            {'species': 'beaver', 'tatoo': None,        'age':  7, 'id': 5, 'name': 'Nico'},
+            {'species': 'wombat', 'tatoo': None,        'age':  7, 'id': 6, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -240,6 +247,12 @@ INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
+
+-- Script 'done/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Robert', 7, 'wombat');
 
 COMMIT;
 """
@@ -264,6 +277,12 @@ INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
+
+-- Script 'done/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Robert', 7, 'wombat');
 
 COMMIT;
 """
@@ -307,6 +326,12 @@ INSERT INTO pet
   (name, age, species)
 VALUES
   ('Nico', 7, 'beaver');
+
+-- Script 'done/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Robert', 7, 'wombat');
 
 COMMIT;
 """
@@ -423,13 +448,14 @@ COMMIT;
 Using base 'test' as user 'test'
 Creating meta tables... OK
 Listing passed scripts... OK
-6 scripts to run:
+7 scripts to run:
 - init/all.sql
 - init/itg.sql
 - 0.1/all.sql
 - 0.1/itg.sql
 - 1.0/all.sql
 - next/all.sql
+- done/all.sql
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
@@ -439,12 +465,13 @@ Listing passed scripts... OK
 Using base 'test' as user 'test'
 Creating meta tables... OK
 Listing passed scripts... OK
-5 scripts to run:
+6 scripts to run:
 - init/all.sql
 - init/itg.sql
 - 0.1/all.sql
 - 0.1/itg.sql
 - 1.0/all.sql
+- done/all.sql
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
@@ -454,11 +481,12 @@ Listing passed scripts... OK
 Using base 'test' as user 'test'
 Creating meta tables... OK
 Listing passed scripts... OK
-4 scripts to run:
+5 scripts to run:
 - init/all.sql
 - init/itg.sql
 - 0.1/all.sql
 - 0.1/itg.sql
+- done/all.sql
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
@@ -471,8 +499,9 @@ Listing passed scripts... OK
 Using base 'test' as user 'test'
 Creating meta tables... OK
 Listing passed scripts... OK
-1 scripts to run:
+2 scripts to run:
 - 1.0/all.sql
+- done/all.sql
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
@@ -482,9 +511,10 @@ Listing passed scripts... OK
 Using base 'test' as user 'test'
 Creating meta tables... OK
 Listing passed scripts... OK
-2 scripts to run:
+3 scripts to run:
 - 1.0/all.sql
 - next/all.sql
+- done/all.sql
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
@@ -494,13 +524,14 @@ Listing passed scripts... OK
 Using base 'test' as user 'test'
 Creating meta tables... OK
 Listing passed scripts... OK
-6 scripts to run:
+7 scripts to run:
 - init/all.sql
 - init/itg.sql
 - 0.1/all.sql
 - 0.1/itg.sql
 - 1.0/all.sql
 - next/all.sql
+- done/all.sql
 '''
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
