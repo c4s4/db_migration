@@ -10,7 +10,7 @@
 #   - "Description about what was removed."
 
 - version: 2.6.0
-  date:    2016-08-??
+  date:    2016-10-27
   summary: Optimized the number of database connections
   added:
   - "Drop and create meta tables in a single query."
