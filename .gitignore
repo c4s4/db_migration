@@ -1,5 +1,6 @@
 build/
 venv/
 .idea/
+*.iml
 .ropeproject/
 **/*.pyc

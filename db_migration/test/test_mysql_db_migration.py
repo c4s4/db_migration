@@ -127,9 +127,10 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'wombat', 'tatoo': None,        'age':  7, 'id': 4, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -150,9 +151,11 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'wombat', 'age': 7,  'id': 4, 'name': 'Robert'},
+
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -174,9 +177,10 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'tatoo': None, 'age': 6,  'id': 1, 'name': 'Milou'},
-            {'species': 'dog', 'tatoo': None, 'age': 11, 'id': 2, 'name': 'Médor'},
-            {'species': 'cat', 'tatoo': None, 'age': 10, 'id': 3, 'name': 'Félix'},
+            {'species': 'dog',    'tatoo': None, 'age': 6,  'id': 1, 'name': 'Milou'},
+            {'species': 'dog',    'tatoo': None, 'age': 11, 'id': 2, 'name': 'Médor'},
+            {'species': 'cat',    'tatoo': None, 'age': 10, 'id': 3, 'name': 'Félix'},
+            {'species': 'wombat', 'tatoo': None, 'age':  7, 'id': 4, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
 
@@ -198,9 +202,10 @@ class TestDBMigration(unittest.TestCase):
         """
         self.assert_schema(EXPECTED_SCHEMA)
         EXPECTED_DATA = (
-            {'species': 'dog', 'age': 14, 'id': 1, 'name': 'Réglisse'},
-            {'species': 'cat', 'age': 13, 'id': 2, 'name': 'Mignonne'},
-            {'species': 'cat', 'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'dog',    'age': 14, 'id': 1, 'name': 'Réglisse'},
+            {'species': 'cat',    'age': 13, 'id': 2, 'name': 'Mignonne'},
+            {'species': 'cat',    'age': 19, 'id': 3, 'name': 'Ophélie'},
+            {'species': 'wombat', 'age':  7, 'id': 4, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
         # migrate database to version 1.0
@@ -224,14 +229,17 @@ class TestDBMigration(unittest.TestCase):
             {'species': 'dog',    'tatoo': '2-GKB-951', 'age': 14, 'id': 1, 'name': 'Réglisse'},
             {'species': 'cat',    'tatoo': None,        'age': 13, 'id': 2, 'name': 'Mignonne'},
             {'species': 'cat',    'tatoo': None,        'age': 19, 'id': 3, 'name': 'Ophélie'},
-            {'species': 'beaver', 'tatoo': None,        'age': 7, 'id': 4, 'name': 'Nico'},
+            {'species': 'wombat', 'tatoo': None,        'age':  7, 'id': 4, 'name': 'Robert'},
+            {'species': 'beaver', 'tatoo': None,        'age':  7, 'id': 5, 'name': 'Nico'},
+            {'species': 'wombat', 'tatoo': None,        'age':  7, 'id': 6, 'name': 'Robert'},
         )
         self.assert_data(EXPECTED_DATA)
 
-    def test_migration_script(self):
+    def test_migration_script_mysql(self):
         # nominal case
-        expected = '''-- Migration base 'test' on platform 'itg'
+        expected = """-- Migration base 'test' on platform 'itg'
 -- From version '0.1' to '1.0'
+
 USE `test`;
 
 -- Script '1.0/all.sql'
@@ -240,15 +248,22 @@ INSERT INTO pet
 VALUES
   ('Nico', 7, 'beaver');
 
+-- Script 'done/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Robert', 7, 'wombat');
+
 COMMIT;
-'''
+"""
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                         '-m', '0.1', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # another nominal case
-        expected = '''-- Migration base 'test' on platform 'itg'
+        expected = """-- Migration base 'test' on platform 'itg'
 -- From version '0' to '1.0'
+
 USE `test`;
 
 -- Script '0.1/all.sql'
@@ -263,15 +278,22 @@ INSERT INTO pet
 VALUES
   ('Nico', 7, 'beaver');
 
+-- Script 'done/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Robert', 7, 'wombat');
+
 COMMIT;
-'''
+"""
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                         '-m', '0', 'itg', '1.0'])
         self.assertEquals(expected, actual)
         # nominal case from init
-        expected = '''-- Migration base 'test' on platform 'itg'
+        expected = """-- Migration base 'test' on platform 'itg'
 -- From version 'init' to '1.0'
+
 USE `test`;
 
 -- Script 'init/all.sql'
@@ -305,11 +327,215 @@ INSERT INTO pet
 VALUES
   ('Nico', 7, 'beaver');
 
+-- Script 'done/all.sql'
+INSERT INTO pet
+  (name, age, species)
+VALUES
+  ('Robert', 7, 'wombat');
+
 COMMIT;
-'''
+"""
         actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
                                         '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
                                         '-m', 'init', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+
+    def test_migration_script_oracle(self):
+        # nominal case
+        expected = """-- Migration base 'orcl' on platform 'itg'
+-- From version '0.1' to '1.0'
+
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT 9;
+
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
+
+COMMIT;
+"""
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/oracle/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/oracle' % self.ROOT_DIR,
+                                        '-m', '0.1', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        # another nominal case
+        expected = """-- Migration base 'orcl' on platform 'itg'
+-- From version '0' to '1.0'
+
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT 9;
+
+-- Script '0.1/all.sql'
+ALTER TABLE PET ADD TATOO VARCHAR(20);
+
+-- Script '0.1/itg.sql'
+UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='Réglisse';
+
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
+
+COMMIT;
+"""
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/oracle/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/oracle' % self.ROOT_DIR,
+                                        '-m', '0', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        # nominal case from init
+        expected = """-- Migration base 'orcl' on platform 'itg'
+-- From version 'init' to '1.0'
+
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT 9;
+
+-- Script 'init/all.sql'
+-- clean schema
+BEGIN
+  FOR cur_rec IN (SELECT object_name, object_type
+                  FROM   user_objects
+                  WHERE  object_type IN ('TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'FUNCTION', 'SEQUENCE')) LOOP
+    BEGIN
+      IF cur_rec.object_name = 'INSTALL_' OR cur_rec.object_name = 'SCRIPTS_' OR
+         cur_rec.object_name = 'INSTALL_SEQUENCE' THEN
+        CONTINUE;
+      end IF;
+      IF cur_rec.object_type = 'TABLE' THEN
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '" CASCADE CONSTRAINTS';
+      ELSE
+        EXECUTE IMMEDIATE 'DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"';
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        DBMS_OUTPUT.put_line('FAILED: DROP ' || cur_rec.object_type || ' "' || cur_rec.object_name || '"');
+    END;
+  END LOOP;
+END;
+/
+-- create table PET
+CREATE TABLE PET (
+  ID NUMBER(10) NOT NULL,
+  NAME VARCHAR(20) NOT NULL,
+  AGE NUMBER(2) NOT NULL,
+  SPECIES VARCHAR(10) NOT NULL,
+  PRIMARY KEY  (id)
+);
+CREATE SEQUENCE PET_SEQUENCE
+  START WITH 1
+  INCREMENT BY 1
+  CACHE 100;
+
+-- Script 'init/itg.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Réglisse', 14, 'dog');
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Mignonne', 13, 'cat');
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Ophélie', 19, 'cat');
+
+-- Script '0.1/all.sql'
+ALTER TABLE PET ADD TATOO VARCHAR(20);
+
+-- Script '0.1/itg.sql'
+UPDATE PET SET TATOO='2-GKB-951' WHERE NAME='Réglisse';
+
+-- Script '1.0/all.sql'
+INSERT INTO pet (ID, NAME, AGE, SPECIES) VALUES (PET_SEQUENCE.nextval, 'Nico', 7, 'beaver');
+
+COMMIT;
+"""
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/oracle/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/oracle' % self.ROOT_DIR,
+                                        '-m', 'init', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+
+    def test_dry_run(self):
+        expected = '''Version 'all' on platform 'localhost'
+Using base 'test' as user 'test'
+Creating meta tables... OK
+Listing passed scripts... OK
+7 scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- 1.0/all.sql
+- next/all.sql
+- done/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', '-a', 'itg'])
+        self.assertEquals(expected, actual)
+        expected = '''Version '1.0' on platform 'localhost'
+Using base 'test' as user 'test'
+Creating meta tables... OK
+Listing passed scripts... OK
+6 scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- 1.0/all.sql
+- done/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        expected = '''Version '0.1' on platform 'localhost'
+Using base 'test' as user 'test'
+Creating meta tables... OK
+Listing passed scripts... OK
+5 scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- done/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', 'itg', '0.1'])
+        self.assertEquals(expected, actual)
+        self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                               '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                               '-i', 'itg', '0.1'])
+        expected = '''Version '1.0' on platform 'localhost'
+Using base 'test' as user 'test'
+Creating meta tables... OK
+Listing passed scripts... OK
+2 scripts to run:
+- 1.0/all.sql
+- done/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', 'itg', '1.0'])
+        self.assertEquals(expected, actual)
+        expected = '''Version 'all' on platform 'localhost'
+Using base 'test' as user 'test'
+Creating meta tables... OK
+Listing passed scripts... OK
+3 scripts to run:
+- 1.0/all.sql
+- next/all.sql
+- done/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-a', 'itg'])
+        self.assertEquals(expected, actual)
+        expected = '''Version 'all' on platform 'localhost'
+Using base 'test' as user 'test'
+Creating meta tables... OK
+Listing passed scripts... OK
+7 scripts to run:
+- init/all.sql
+- init/itg.sql
+- 0.1/all.sql
+- 0.1/itg.sql
+- 1.0/all.sql
+- next/all.sql
+- done/all.sql
+'''
+        actual = self.run_db_migration(['-c', '%s/db_migration/test/sql/mysql/db_configuration.py' % self.ROOT_DIR,
+                                        '-s', '%s/db_migration/test/sql/mysql' % self.ROOT_DIR,
+                                        '-d', '-i', '-a', 'itg'])
         self.assertEquals(expected, actual)
 
     def test_command_line_options(self):
